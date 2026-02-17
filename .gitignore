@@ -1,0 +1,11 @@
+# Office files
+*.pptx
+*.xlsx
+*.docx
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
