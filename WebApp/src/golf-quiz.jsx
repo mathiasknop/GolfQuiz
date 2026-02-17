@@ -135,6 +135,30 @@ function App() {
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [teams, teamCount, scores, activeRound, view, showAnswers, sessionCode, sessionStatus]);
 
+  // Poll for remote changes every 3s (real-time sync across devices)
+  useEffect(() => {
+    if (!initialized.current || !sessionCode || view === "lobby" || view === "sessions") return;
+    const poll = setInterval(() => {
+      // Skip if a local save is pending — our own changes haven't been written yet
+      if (saveTimer.current) return;
+      fetch(`/api/session/${sessionCode}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d?.session) return;
+          const s = d.session;
+          // Only apply if remote data is newer than what we last saved
+          setScores(prev => JSON.stringify(prev) === JSON.stringify(s.scores || {}) ? prev : (s.scores || {}));
+          setTeams(prev => JSON.stringify(prev) === JSON.stringify(s.teams) ? prev : (s.teams || prev));
+          setTeamCount(prev => s.teamCount != null && s.teamCount !== prev ? s.teamCount : prev);
+          setShowAnswers(prev => s.showAnswers !== undefined && s.showAnswers !== prev ? s.showAnswers : prev);
+          setActiveRound(prev => s.activeRound && s.activeRound !== prev ? s.activeRound : prev);
+          setSessionStatus(prev => { const st = s.status || "open"; return st !== prev ? st : prev; });
+        })
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(poll);
+  }, [sessionCode, view]);
+
   const handleNewSession = useCallback(() => {
     return fetch("/api/session", { method: "POST" })
       .then(r => { if (!r.ok) throw new Error("Failed to create session"); return r.json(); })
@@ -233,7 +257,7 @@ function App() {
 
   if (view === "lobby") return <LobbyView onNewSession={handleNewSession} onJoinSession={handleJoinSession} onViewSessions={() => setView("sessions")} />;
   if (view === "sessions") return <SessionsOverview onBack={() => setView("lobby")} onJoinSession={handleJoinSession} />;
-  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} />;
+  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} hasScores={Object.keys(scores).length > 0} />;
   if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode} />;
   return (
     <ScoringView
@@ -424,7 +448,7 @@ function SessionBadge({ code }) {
   );
 }
 
-function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode, readOnly }) {
+function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode, readOnly, hasScores }) {
   return (
     <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ position: "fixed", inset: 0, background: C.overlay, zIndex: 0 }} />
@@ -471,7 +495,7 @@ function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveS
             </div>
           </div>
 
-          <button onClick={onStart} style={{ ...btnPrimary, width: "100%" }}>{readOnly ? "View Scores" : "Start Scoring"}</button>
+          <button onClick={onStart} style={{ ...btnPrimary, width: "100%" }}>{readOnly ? "View Scores" : hasScores ? "Back to Scoring" : "Start Scoring"}</button>
           <button onClick={onLeaveSession} style={{ ...btnGhost, width: "100%", marginTop: 10, fontSize: 12 }}>New Quiz Session</button>
         </div>
       </div>
