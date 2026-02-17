@@ -76,7 +76,7 @@ function App() {
   useEffect(() => {
     Promise.all([
       fetch("/api/quiz-data").then(r => { if (!r.ok) throw new Error(`Failed to load quiz data (${r.status})`); return r.json(); }),
-      fetch("/api/session").then(r => r.json()),
+      fetch("/api/session").then(r => r.json()).then(d => d.session),
     ])
       .then(([quizData, session]) => {
         setRoundsData(quizData.rounds);

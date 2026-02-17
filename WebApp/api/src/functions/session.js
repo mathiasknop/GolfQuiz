@@ -20,13 +20,13 @@ app.http("session-get", {
     try {
       const { resource } = await sessions.item(SESSION_ID, SESSION_ID).read();
       if (!resource) {
-        return { jsonBody: null };
+        return { jsonBody: { session: null } };
       }
       const { _rid, _self, _etag, _attachments, _ts, ...session } = resource;
-      return { jsonBody: session };
+      return { jsonBody: { session } };
     } catch (err) {
       if (err.code === 404) {
-        return { jsonBody: null };
+        return { jsonBody: { session: null } };
       }
       context.error("Failed to load session:", err.message);
       return { status: 500, jsonBody: { error: "Failed to load session" } };
