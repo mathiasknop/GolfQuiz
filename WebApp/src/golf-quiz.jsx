@@ -54,13 +54,16 @@ const LogoMark = ({ size = "md" }) => {
   );
 };
 
+const SESSION_KEY = "gq-session-code";
+
 function App() {
   const [roundsData, setRoundsData] = useState(null);
   const [roundOrder, setRoundOrder] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [view, setView] = useState("setup");
+  const [sessionCode, setSessionCode] = useState(null);
+  const [view, setView] = useState("lobby");
   const [teams, setTeams] = useState(DEFAULT_TEAMS);
   const [teamCount, setTeamCount] = useState(10);
   const [scores, setScores] = useState({});
@@ -72,24 +75,40 @@ function App() {
   const initialized = useRef(false);
   const saveTimer = useRef(null);
 
-  // Load quiz data + existing session on startup
+  const restoreSession = useCallback((session, quizRoundOrder) => {
+    setSessionCode(session.id);
+    localStorage.setItem(SESSION_KEY, session.id);
+    setTeams(session.teams || DEFAULT_TEAMS);
+    setTeamCount(session.teamCount || 10);
+    setScores(session.scores || {});
+    setActiveRound(session.activeRound || quizRoundOrder[0]);
+    setView(session.view === "lobby" ? "setup" : (session.view || "setup"));
+    setShowAnswers(session.showAnswers !== undefined ? session.showAnswers : true);
+  }, []);
+
+  // Load quiz data + try to resume session from localStorage
   useEffect(() => {
-    Promise.all([
-      fetch("/api/quiz-data").then(r => { if (!r.ok) throw new Error(`Failed to load quiz data (${r.status})`); return r.json(); }),
-      fetch("/api/session").then(r => r.json()).then(d => d.session),
-    ])
+    const savedCode = localStorage.getItem(SESSION_KEY);
+
+    const quizPromise = fetch("/api/quiz-data").then(r => {
+      if (!r.ok) throw new Error(`Failed to load quiz data (${r.status})`);
+      return r.json();
+    });
+
+    const sessionPromise = savedCode
+      ? fetch(`/api/session/${savedCode}`).then(r => r.ok ? r.json().then(d => d.session) : null)
+      : Promise.resolve(null);
+
+    Promise.all([quizPromise, sessionPromise])
       .then(([quizData, session]) => {
         setRoundsData(quizData.rounds);
         setRoundOrder(quizData.roundOrder);
         if (session) {
-          setTeams(session.teams || DEFAULT_TEAMS);
-          setTeamCount(session.teamCount || 10);
-          setScores(session.scores || {});
-          setActiveRound(session.activeRound || quizData.roundOrder[0]);
-          setView(session.view || "setup");
-          setShowAnswers(session.showAnswers !== undefined ? session.showAnswers : true);
+          restoreSession(session, quizData.roundOrder);
         } else {
+          localStorage.removeItem(SESSION_KEY);
           setActiveRound(quizData.roundOrder[0]);
+          setView("lobby");
         }
         setLoading(false);
         initialized.current = true;
@@ -98,35 +117,53 @@ function App() {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [restoreSession]);
 
   // Auto-save session to Cosmos DB (debounced 500ms)
   useEffect(() => {
-    if (!initialized.current) return;
+    if (!initialized.current || !sessionCode || view === "lobby") return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      fetch("/api/session", {
+      fetch(`/api/session/${sessionCode}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ teams, teamCount, scores, activeRound, view, showAnswers }),
       }).catch(() => {});
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [teams, teamCount, scores, activeRound, view, showAnswers]);
+  }, [teams, teamCount, scores, activeRound, view, showAnswers, sessionCode]);
 
-  const handleNewQuizNight = useCallback(() => {
-    fetch("/api/session/new", { method: "POST" })
-      .then(() => {
+  const handleNewSession = useCallback(() => {
+    return fetch("/api/session", { method: "POST" })
+      .then(r => { if (!r.ok) throw new Error("Failed to create session"); return r.json(); })
+      .then(d => {
+        restoreSession(d.session, roundOrder);
         setView("setup");
-        setTeams([...DEFAULT_TEAMS]);
-        setTeamCount(10);
-        setScores({});
-        setActiveRound(roundOrder[0] || null);
-        setShowAnswers(true);
-        setRevealCount(0);
-        setRevealed(false);
-      })
-      .catch(() => {});
+        initialized.current = true;
+      });
+  }, [roundOrder, restoreSession]);
+
+  const handleJoinSession = useCallback((code) => {
+    return fetch(`/api/session/${code}`)
+      .then(r => { if (!r.ok) throw new Error("Session not found"); return r.json(); })
+      .then(d => {
+        restoreSession(d.session, roundOrder);
+        initialized.current = true;
+      });
+  }, [roundOrder, restoreSession]);
+
+  const handleLeaveSession = useCallback(() => {
+    localStorage.removeItem(SESSION_KEY);
+    setSessionCode(null);
+    setView("lobby");
+    setTeams([...DEFAULT_TEAMS]);
+    setTeamCount(10);
+    setScores({});
+    setActiveRound(roundOrder[0] || null);
+    setShowAnswers(true);
+    setRevealCount(0);
+    setRevealed(false);
+    initialized.current = false;
   }, [roundOrder]);
 
   const activeTeams = useMemo(() => teams.slice(0, teamCount), [teams, teamCount]);
@@ -164,7 +201,7 @@ function App() {
     <div style={{ minHeight: "100vh", background: C.greenDeep, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ textAlign: "center" }}>
         <LogoMark size="lg" />
-        <div style={{ marginTop: 24, color: C.sage, fontFamily: "'Inter', sans-serif", fontSize: 14 }}>Loading quiz data...</div>
+        <div style={{ marginTop: 24, color: C.sage, fontFamily: "'Inter', sans-serif", fontSize: 14 }}>Loading...</div>
       </div>
     </div>
   );
@@ -179,8 +216,9 @@ function App() {
     </div>
   );
 
-  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onNewQuizNight={handleNewQuizNight} />;
-  if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} />;
+  if (view === "lobby") return <LobbyView onNewSession={handleNewSession} onJoinSession={handleJoinSession} />;
+  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} />;
+  if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode} />;
   return (
     <ScoringView
       activeRound={activeRound} setActiveRound={setActiveRound} activeTeams={activeTeams}
@@ -188,20 +226,92 @@ function App() {
       showAnswers={showAnswers} setShowAnswers={setShowAnswers}
       onLeaderboard={() => { setRevealed(false); setRevealCount(0); setView("leaderboard"); }}
       onSetup={() => setView("setup")}
-      roundsData={roundsData} roundOrder={roundOrder}
+      roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode}
     />
   );
 }
 
-function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onNewQuizNight }) {
+function LobbyView({ onNewSession, onJoinSession }) {
+  const [joinCode, setJoinCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [joinError, setJoinError] = useState(null);
+
+  const handleNew = () => {
+    setBusy(true);
+    onNewSession().catch(() => setBusy(false));
+  };
+
+  const handleJoin = () => {
+    const code = joinCode.trim().toUpperCase();
+    if (!code) return;
+    setBusy(true);
+    setJoinError(null);
+    onJoinSession(code).catch(() => {
+      setJoinError("Session not found. Check the code and try again.");
+      setBusy(false);
+    });
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ position: "fixed", inset: 0, background: C.overlay, zIndex: 0 }} />
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 400, width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <LogoMark size="lg" />
+          <div style={{ marginTop: 24, fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: 5, textTransform: "uppercase", color: C.sage, fontWeight: 300 }}>
+            Quiz Session
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ background: C.greenDark, borderRadius: 4, padding: "24px", border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+            <div style={{ fontSize: 13, color: C.sage, marginBottom: 14, fontFamily: "'Inter', sans-serif" }}>Start fresh with a new session code</div>
+            <button onClick={handleNew} disabled={busy} style={{ ...btnPrimary, width: "100%", opacity: busy ? 0.6 : 1 }}>
+              {busy ? "Creating..." : "New Quiz Session"}
+            </button>
+          </div>
+
+          <div style={{ textAlign: "center", fontSize: 11, color: C.sageDark, fontFamily: "'Inter', sans-serif", letterSpacing: 2, textTransform: "uppercase" }}>or</div>
+
+          <div style={{ background: C.greenDark, borderRadius: 4, padding: "24px", border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+            <div style={{ fontSize: 13, color: C.sage, marginBottom: 14, fontFamily: "'Inter', sans-serif" }}>Join an existing session</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={joinCode} placeholder="e.g. GQ-7K3M"
+                onChange={e => { setJoinCode(e.target.value.toUpperCase()); setJoinError(null); }}
+                onKeyDown={e => e.key === "Enter" && handleJoin()}
+                style={{ flex: 1, padding: "10px 14px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 15, background: C.greenDeep, color: C.cream, outline: "none", fontFamily: "'Inter', sans-serif", letterSpacing: 2, textAlign: "center" }}
+                onFocus={e => e.target.style.borderColor = C.greenSoft}
+                onBlur={e => e.target.style.borderColor = C.border}
+              />
+              <button onClick={handleJoin} disabled={busy || !joinCode.trim()} style={{ ...btnPrimary, opacity: (busy || !joinCode.trim()) ? 0.6 : 1, padding: "10px 20px" }}>Join</button>
+            </div>
+            {joinError && <div style={{ marginTop: 10, fontSize: 12, color: C.wrong, fontFamily: "'Inter', sans-serif" }}>{joinError}</div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SessionBadge({ code }) {
+  return (
+    <span style={{ display: "inline-block", padding: "3px 10px", background: C.greenMid, borderRadius: 3, fontSize: 11, fontWeight: 600, letterSpacing: 2, color: C.sage, fontFamily: "'Inter', sans-serif", border: `1px solid ${C.border}` }}>
+      {code}
+    </span>
+  );
+}
+
+function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode }) {
   return (
     <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ position: "fixed", inset: 0, background: C.overlay, zIndex: 0 }} />
       <div style={{ position: "relative", zIndex: 1, maxWidth: 440, width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <LogoMark size="lg" />
-          <div style={{ marginTop: 24, fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: 5, textTransform: "uppercase", color: C.sage, fontWeight: 300 }}>
-            Quiz Night
+          <div style={{ marginTop: 16 }}><SessionBadge code={sessionCode} /></div>
+          <div style={{ marginTop: 12, fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: 5, textTransform: "uppercase", color: C.sage, fontWeight: 300 }}>
+            Quiz Session
           </div>
         </div>
 
@@ -232,20 +342,23 @@ function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onNewQui
           </div>
 
           <button onClick={onStart} style={{ ...btnPrimary, width: "100%" }}>Start Scoring</button>
-          <button onClick={() => { if (window.confirm("Start a new quiz night? This will clear all teams and scores.")) onNewQuizNight(); }} style={{ ...btnGhost, width: "100%", marginTop: 10, fontSize: 12 }}>New Quiz Night</button>
+          <button onClick={onLeaveSession} style={{ ...btnGhost, width: "100%", marginTop: 10, fontSize: 12 }}>New Quiz Session</button>
         </div>
       </div>
     </div>
   );
 }
 
-function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, roundsData, roundOrder }) {
+function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, roundsData, roundOrder, sessionCode }) {
   const round = roundsData[activeRound];
   return (
     <div style={{ minHeight: "100vh", background: C.greenDeep, fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>
       {/* Top bar */}
       <div style={{ background: C.greenDark, padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, borderBottom: `1px solid ${C.border}` }}>
-        <LogoMark size="sm" />
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <LogoMark size="sm" />
+          <SessionBadge code={sessionCode} />
+        </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button onClick={onSetup} style={btnGhost}>Setup</button>
           <button onClick={onLeaderboard} style={btnAccent}>Leaderboard</button>
@@ -357,7 +470,7 @@ function ScoreButton({ value, onChange }) {
   );
 }
 
-function LeaderboardView({ leaderboard, onBack, revealed, setRevealed, revealCount, setRevealCount, roundsData, roundOrder }) {
+function LeaderboardView({ leaderboard, onBack, revealed, setRevealed, revealCount, setRevealCount, roundsData, roundOrder, sessionCode }) {
   const maxTotal = 67;
   const totalTeams = leaderboard.length;
 
@@ -377,7 +490,10 @@ function LeaderboardView({ leaderboard, onBack, revealed, setRevealed, revealCou
       <div style={{ position: "relative", zIndex: 1 }}>
         {/* Header */}
         <div style={{ padding: "16px 16px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onBack} style={btnGhost}>← Scoring</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={onBack} style={btnGhost}>← Scoring</button>
+            <SessionBadge code={sessionCode} />
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             {!revealed && (
               <>
