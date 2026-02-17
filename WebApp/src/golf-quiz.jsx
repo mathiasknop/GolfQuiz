@@ -1,121 +1,5 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
-const ROUNDS_DATA = {
-  series1: {
-    id: "series1", name: "Series 1", subtitle: "Ryder Cup", type: "series", maxPts: 6,
-    questions: [
-      { id: "s1q1", label: "Q1", answer: "President's Cup" },
-      { id: "s1q2", label: "Q2", answer: "Nick Faldo & Lee Westwood" },
-      { id: "s1q3", label: "Q3", answer: "1979" },
-      { id: "s1q4", label: "Q4", answer: "Foursome" },
-      { id: "s1q5", label: "Q5", answer: "Seve Ballesteros & José Maria Olazabal" },
-      { id: "s1q6", label: "Q6", answer: "Ireland" },
-    ],
-  },
-  series2: {
-    id: "series2", name: "Series 2", subtitle: "New Superstars", type: "series", maxPts: 6,
-    questions: [
-      { id: "s2q1", label: "Q1", answer: "Tiger Woods" },
-      { id: "s2q2", label: "Q2", answer: "17th" },
-      { id: "s2q3", label: "Q3", answer: "Brooks Koepka" },
-      { id: "s2q4", label: "Q4", answer: "Sergio Garcia" },
-      { id: "s2q5", label: "Q5", answer: "Colin Morikawa" },
-      { id: "s2q6", label: "Q6", answer: "The US Open" },
-    ],
-  },
-  series3: {
-    id: "series3", name: "Series 3", subtitle: "Women's Golf", type: "series", maxPts: 6,
-    questions: [
-      { id: "s3q1", label: "Q1", answer: "1990" },
-      { id: "s3q2", label: "Q2", answer: "Mickey Wright" },
-      { id: "s3q3", label: "Q3", answer: "Manon De Roey" },
-      { id: "s3q4", label: "Q4", answer: "The Evian Championship" },
-      { id: "s3q5", label: "Q5", answer: "Maja Stark" },
-      { id: "s3q6", label: "Q6", answer: "Anika Sörenstam" },
-    ],
-  },
-  series4: {
-    id: "series4", name: "Series 4", subtitle: "Golf in Belgium", type: "series", maxPts: 6,
-    questions: [
-      { id: "s4q1", label: "Q1", answer: "José Maria Olazabal" },
-      { id: "s4q2", label: "Q2", answer: "Royal Bercuit" },
-      { id: "s4q3", label: "Q3", answer: "Flory Van Donck" },
-      { id: "s4q4", label: "Q4", answer: "Hulencourt Golf Club" },
-      { id: "s4q5", label: "Q5", answer: "WM Phoenix Open" },
-      { id: "s4q6", label: "Q6", answer: "Pieters & Colsaerts" },
-    ],
-  },
-  series5: {
-    id: "series5", name: "Series 5", subtitle: "Old Superstars", type: "series", maxPts: 6,
-    questions: [
-      { id: "s5q1", label: "Q1", answer: "16" },
-      { id: "s5q2", label: "Q2", answer: "Gene Sarazen" },
-      { id: "s5q3", label: "Q3", answer: "Sarazen (Bridge)" },
-      { id: "s5q4", label: "Q4", answer: "Sam Snead" },
-      { id: "s5q5", label: "Q5", answer: "19" },
-      { id: "s5q6", label: "Q6", answer: "Seve Ballesteros" },
-    ],
-  },
-  series6: {
-    id: "series6", name: "Series 6", subtitle: "The Open", type: "series", maxPts: 6,
-    questions: [
-      { id: "s6q1", label: "Q1", answer: "Prestwick" },
-      { id: "s6q2", label: "Q2", answer: "Swilcan Bridge" },
-      { id: "s6q3", label: "Q3", answer: "Gary Player" },
-      { id: "s6q4", label: "Q4", answer: "Royal Birkdale" },
-      { id: "s6q5", label: "Q5", answer: "Shane Lowry" },
-      { id: "s6q6", label: "Q6", answer: "Muirfield" },
-    ],
-  },
-  series7: {
-    id: "series7", name: "Series 7", subtitle: "The Majors", type: "series", maxPts: 6,
-    questions: [
-      { id: "s7q1", label: "Q1", answer: "Phil Mickelson" },
-      { id: "s7q2", label: "Q2", answer: "Greg Norman" },
-      { id: "s7q3", label: "Q3", answer: "Bobby Jones" },
-      { id: "s7q4", label: "Q4", answer: "164" },
-      { id: "s7q5", label: "Q5", answer: "Rickie Fowler" },
-      { id: "s7q6", label: "Q6", answer: "Rory McIlroy" },
-    ],
-  },
-  varia: {
-    id: "varia", name: "Varia Round", subtitle: "During Series 2-3-4", type: "varia", maxPts: 15,
-    questions: [
-      { id: "vq1", label: "1", answer: "Brooks Koepka" },
-      { id: "vq2", label: "2", answer: "Dustin Johnson" },
-      { id: "vq3", label: "3", answer: "Cameron Smith" },
-      { id: "vq4", label: "4", answer: "Jon Rahm" },
-      { id: "vq5", label: "5", answer: "Xander Schauffele" },
-      { id: "vq6", label: "6", answer: "Royal St George's" },
-      { id: "vq7", label: "7", answer: "Royal Portrush" },
-      { id: "vq8", label: "8", answer: "The Players" },
-      { id: "vq9", label: "9", answer: "Phoenix Open" },
-      { id: "vq10", label: "10", answer: "Open de France" },
-      { id: "vq11", label: "11", answer: "BMW PGA Championship" },
-      { id: "vq12", label: "12", answer: "Pine Valley Golf Club" },
-      { id: "vq13", label: "13", answer: "Cypress Point Club" },
-      { id: "vq14", label: "14", answer: "Shinnecock Hills Golf Club" },
-      { id: "vq15", label: "15", answer: "Royal County Down" },
-    ],
-  },
-  photo: {
-    id: "photo", name: "Photo Round", subtitle: "During Series 5-6", type: "photo", maxPts: 10,
-    questions: [
-      { id: "pq1", label: "A", answer: "Gene Sarazen" },
-      { id: "pq2", label: "B", answer: "Johnny Miller" },
-      { id: "pq3", label: "C", answer: "Arnold Palmer" },
-      { id: "pq4", label: "D", answer: "Seve Ballesteros" },
-      { id: "pq5", label: "E", answer: "Nick Faldo" },
-      { id: "pq6", label: "F", answer: "Tom Watson" },
-      { id: "pq7", label: "G", answer: "Fred Couples" },
-      { id: "pq8", label: "H", answer: "Payne Stewart" },
-      { id: "pq9", label: "I", answer: "Sam Snead" },
-      { id: "pq10", label: "J", answer: "Ben Hogan" },
-    ],
-  },
-};
-
-const ROUND_ORDER = ["series1","series2","series3","series4","series5","series6","series7","varia","photo"];
 const DEFAULT_TEAMS = Array.from({ length: 10 }, (_, i) => `Team ${i + 1}`);
 
 // The National Golf Brussels - exact brand colors
@@ -171,14 +55,37 @@ const LogoMark = ({ size = "md" }) => {
 };
 
 function App() {
+  const [roundsData, setRoundsData] = useState(null);
+  const [roundOrder, setRoundOrder] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [view, setView] = useState("setup");
   const [teams, setTeams] = useState(DEFAULT_TEAMS);
   const [teamCount, setTeamCount] = useState(10);
   const [scores, setScores] = useState({});
-  const [activeRound, setActiveRound] = useState("series1");
+  const [activeRound, setActiveRound] = useState(null);
   const [showAnswers, setShowAnswers] = useState(true);
   const [revealCount, setRevealCount] = useState(0);
   const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/quiz-data")
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to load quiz data (${res.status})`);
+        return res.json();
+      })
+      .then(data => {
+        setRoundsData(data.rounds);
+        setRoundOrder(data.roundOrder);
+        setActiveRound(data.roundOrder[0]);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
 
   const activeTeams = useMemo(() => teams.slice(0, teamCount), [teams, teamCount]);
 
@@ -192,26 +99,46 @@ function App() {
   }, []);
 
   const getTeamRoundScore = useCallback((teamIdx, roundId) => {
-    return ROUNDS_DATA[roundId].questions.reduce((sum, q) => sum + (scores[`${teamIdx}-${q.id}`] === 1 ? 1 : 0), 0);
-  }, [scores]);
+    if (!roundsData?.[roundId]) return 0;
+    return roundsData[roundId].questions.reduce((sum, q) => sum + (scores[`${teamIdx}-${q.id}`] === 1 ? 1 : 0), 0);
+  }, [scores, roundsData]);
 
   const getTeamTotal = useCallback((teamIdx) => {
-    return ROUND_ORDER.reduce((sum, rid) => sum + getTeamRoundScore(teamIdx, rid), 0);
-  }, [getTeamRoundScore]);
+    return roundOrder.reduce((sum, rid) => sum + getTeamRoundScore(teamIdx, rid), 0);
+  }, [getTeamRoundScore, roundOrder]);
 
   const leaderboard = useMemo(() => {
     const data = activeTeams.map((name, idx) => ({
       name, idx, total: getTeamTotal(idx),
-      rounds: ROUND_ORDER.reduce((a, rid) => { a[rid] = getTeamRoundScore(idx, rid); return a; }, {}),
+      rounds: roundOrder.reduce((a, rid) => { a[rid] = getTeamRoundScore(idx, rid); return a; }, {}),
     }));
     data.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
     let rank = 1;
     data.forEach((item, i) => { if (i > 0 && item.total < data[i - 1].total) rank = i + 1; item.rank = rank; });
     return data;
-  }, [activeTeams, getTeamTotal, getTeamRoundScore]);
+  }, [activeTeams, getTeamTotal, getTeamRoundScore, roundOrder]);
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: C.greenDeep, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center" }}>
+        <LogoMark size="lg" />
+        <div style={{ marginTop: 24, color: C.sage, fontFamily: "'Inter', sans-serif", fontSize: 14 }}>Loading quiz data...</div>
+      </div>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ minHeight: "100vh", background: C.greenDeep, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center", maxWidth: 400, padding: 20 }}>
+        <LogoMark size="lg" />
+        <div style={{ marginTop: 24, color: C.wrong, fontFamily: "'Inter', sans-serif", fontSize: 14 }}>{error}</div>
+        <button onClick={() => window.location.reload()} style={{ ...btnPrimary, marginTop: 16 }}>Retry</button>
+      </div>
+    </div>
+  );
 
   if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} />;
-  if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} />;
+  if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} />;
   return (
     <ScoringView
       activeRound={activeRound} setActiveRound={setActiveRound} activeTeams={activeTeams}
@@ -219,6 +146,7 @@ function App() {
       showAnswers={showAnswers} setShowAnswers={setShowAnswers}
       onLeaderboard={() => { setRevealed(false); setRevealCount(0); setView("leaderboard"); }}
       onSetup={() => setView("setup")}
+      roundsData={roundsData} roundOrder={roundOrder}
     />
   );
 }
@@ -268,8 +196,8 @@ function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart }) {
   );
 }
 
-function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup }) {
-  const round = ROUNDS_DATA[activeRound];
+function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, roundsData, roundOrder }) {
+  const round = roundsData[activeRound];
   return (
     <div style={{ minHeight: "100vh", background: C.greenDeep, fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>
       {/* Top bar */}
@@ -284,8 +212,8 @@ function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScor
       {/* Round tabs */}
       <div style={{ padding: "10px 12px 8px", overflowX: "auto", whiteSpace: "nowrap", background: C.greenDeep, borderBottom: `1px solid ${C.borderLight}` }}>
         <div style={{ display: "inline-flex", gap: 4 }}>
-          {ROUND_ORDER.map(rid => {
-            const r = ROUNDS_DATA[rid];
+          {roundOrder.map(rid => {
+            const r = roundsData[rid];
             const isActive = rid === activeRound;
             const lbl = r.type === "series" ? `S${rid.slice(-1)}` : r.type === "varia" ? "Varia" : "Photo";
             return (
@@ -386,7 +314,7 @@ function ScoreButton({ value, onChange }) {
   );
 }
 
-function LeaderboardView({ leaderboard, onBack, revealed, setRevealed, revealCount, setRevealCount }) {
+function LeaderboardView({ leaderboard, onBack, revealed, setRevealed, revealCount, setRevealCount, roundsData, roundOrder }) {
   const maxTotal = 67;
   const totalTeams = leaderboard.length;
 
@@ -466,8 +394,8 @@ function LeaderboardView({ leaderboard, onBack, revealed, setRevealed, revealCou
                     </div>
                     {revealed && (
                       <div style={{ display: "flex", gap: 5, marginTop: 6, flexWrap: "wrap" }}>
-                        {ROUND_ORDER.map(rid => {
-                          const r = ROUNDS_DATA[rid];
+                        {roundOrder.map(rid => {
+                          const r = roundsData[rid];
                           const s = team.rounds[rid];
                           const lbl = r.type === "series" ? `S${rid.slice(-1)}` : r.type === "varia" ? "V" : "P";
                           return (

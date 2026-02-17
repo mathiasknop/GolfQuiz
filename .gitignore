@@ -9,3 +9,9 @@ Thumbs.db
 
 # Node
 node_modules/
+
+# Build output
+dist/
+
+# Azure Functions local settings (contains secrets)
+local.settings.json

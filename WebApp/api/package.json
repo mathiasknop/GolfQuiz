@@ -1,0 +1,10 @@
+{
+  "name": "golf-quiz-api",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/functions/*.js",
+  "dependencies": {
+    "@azure/cosmos": "^4.2.0",
+    "@azure/functions": "^4.6.0"
+  }
+}
