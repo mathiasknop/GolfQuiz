@@ -130,7 +130,7 @@ function App() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ teams, teamCount, scores, activeRound, view, showAnswers }),
-      }).catch(() => {});
+      }).catch(() => {}).finally(() => { saveTimer.current = null; });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [teams, teamCount, scores, activeRound, view, showAnswers, sessionCode, sessionStatus]);
