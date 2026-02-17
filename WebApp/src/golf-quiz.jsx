@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 const DEFAULT_TEAMS = Array.from({ length: 10 }, (_, i) => `Team ${i + 1}`);
 
@@ -69,23 +69,65 @@ function App() {
   const [revealCount, setRevealCount] = useState(0);
   const [revealed, setRevealed] = useState(false);
 
+  const initialized = useRef(false);
+  const saveTimer = useRef(null);
+
+  // Load quiz data + existing session on startup
   useEffect(() => {
-    fetch("/api/quiz-data")
-      .then(res => {
-        if (!res.ok) throw new Error(`Failed to load quiz data (${res.status})`);
-        return res.json();
-      })
-      .then(data => {
-        setRoundsData(data.rounds);
-        setRoundOrder(data.roundOrder);
-        setActiveRound(data.roundOrder[0]);
+    Promise.all([
+      fetch("/api/quiz-data").then(r => { if (!r.ok) throw new Error(`Failed to load quiz data (${r.status})`); return r.json(); }),
+      fetch("/api/session").then(r => r.json()),
+    ])
+      .then(([quizData, session]) => {
+        setRoundsData(quizData.rounds);
+        setRoundOrder(quizData.roundOrder);
+        if (session) {
+          setTeams(session.teams || DEFAULT_TEAMS);
+          setTeamCount(session.teamCount || 10);
+          setScores(session.scores || {});
+          setActiveRound(session.activeRound || quizData.roundOrder[0]);
+          setView(session.view || "setup");
+          setShowAnswers(session.showAnswers !== undefined ? session.showAnswers : true);
+        } else {
+          setActiveRound(quizData.roundOrder[0]);
+        }
         setLoading(false);
+        initialized.current = true;
       })
       .catch(err => {
         setError(err.message);
         setLoading(false);
       });
   }, []);
+
+  // Auto-save session to Cosmos DB (debounced 500ms)
+  useEffect(() => {
+    if (!initialized.current) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      fetch("/api/session", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teams, teamCount, scores, activeRound, view, showAnswers }),
+      }).catch(() => {});
+    }, 500);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [teams, teamCount, scores, activeRound, view, showAnswers]);
+
+  const handleNewQuizNight = useCallback(() => {
+    fetch("/api/session/new", { method: "POST" })
+      .then(() => {
+        setView("setup");
+        setTeams([...DEFAULT_TEAMS]);
+        setTeamCount(10);
+        setScores({});
+        setActiveRound(roundOrder[0] || null);
+        setShowAnswers(true);
+        setRevealCount(0);
+        setRevealed(false);
+      })
+      .catch(() => {});
+  }, [roundOrder]);
 
   const activeTeams = useMemo(() => teams.slice(0, teamCount), [teams, teamCount]);
 
@@ -137,7 +179,7 @@ function App() {
     </div>
   );
 
-  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} />;
+  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onNewQuizNight={handleNewQuizNight} />;
   if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} />;
   return (
     <ScoringView
@@ -151,7 +193,7 @@ function App() {
   );
 }
 
-function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart }) {
+function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onNewQuizNight }) {
   return (
     <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ position: "fixed", inset: 0, background: C.overlay, zIndex: 0 }} />
@@ -190,6 +232,7 @@ function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart }) {
           </div>
 
           <button onClick={onStart} style={{ ...btnPrimary, width: "100%" }}>Start Scoring</button>
+          <button onClick={() => { if (window.confirm("Start a new quiz night? This will clear all teams and scores.")) onNewQuizNight(); }} style={{ ...btnGhost, width: "100%", marginTop: 10, fontSize: 12 }}>New Quiz Night</button>
         </div>
       </div>
     </div>
