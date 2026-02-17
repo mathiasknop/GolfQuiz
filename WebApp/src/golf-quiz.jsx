@@ -69,6 +69,7 @@ function App() {
   const [scores, setScores] = useState({});
   const [activeRound, setActiveRound] = useState(null);
   const [showAnswers, setShowAnswers] = useState(true);
+  const [sessionStatus, setSessionStatus] = useState("open");
   const [revealCount, setRevealCount] = useState(0);
   const [revealed, setRevealed] = useState(false);
 
@@ -84,6 +85,7 @@ function App() {
     setActiveRound(session.activeRound || quizRoundOrder[0]);
     setView(session.view === "lobby" ? "setup" : (session.view || "setup"));
     setShowAnswers(session.showAnswers !== undefined ? session.showAnswers : true);
+    setSessionStatus(session.status || "open");
   }, []);
 
   // Load quiz data + try to resume session from localStorage
@@ -121,7 +123,7 @@ function App() {
 
   // Auto-save session to Cosmos DB (debounced 500ms)
   useEffect(() => {
-    if (!initialized.current || !sessionCode || view === "lobby") return;
+    if (!initialized.current || !sessionCode || view === "lobby" || sessionStatus === "closed") return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       fetch(`/api/session/${sessionCode}`, {
@@ -131,7 +133,7 @@ function App() {
       }).catch(() => {});
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [teams, teamCount, scores, activeRound, view, showAnswers, sessionCode]);
+  }, [teams, teamCount, scores, activeRound, view, showAnswers, sessionCode, sessionStatus]);
 
   const handleNewSession = useCallback(() => {
     return fetch("/api/session", { method: "POST" })
@@ -161,10 +163,23 @@ function App() {
     setScores({});
     setActiveRound(roundOrder[0] || null);
     setShowAnswers(true);
+    setSessionStatus("open");
     setRevealCount(0);
     setRevealed(false);
     initialized.current = false;
   }, [roundOrder]);
+
+  const handleToggleSessionStatus = useCallback(() => {
+    if (!sessionCode) return Promise.resolve();
+    const newStatus = sessionStatus === "open" ? "closed" : "open";
+    return fetch(`/api/session/${sessionCode}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    })
+      .then(r => { if (!r.ok) throw new Error("Failed to update status"); return r.json(); })
+      .then(() => { setSessionStatus(newStatus); });
+  }, [sessionCode, sessionStatus]);
 
   const activeTeams = useMemo(() => teams.slice(0, teamCount), [teams, teamCount]);
 
@@ -216,8 +231,9 @@ function App() {
     </div>
   );
 
-  if (view === "lobby") return <LobbyView onNewSession={handleNewSession} onJoinSession={handleJoinSession} />;
-  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} />;
+  if (view === "lobby") return <LobbyView onNewSession={handleNewSession} onJoinSession={handleJoinSession} onViewSessions={() => setView("sessions")} />;
+  if (view === "sessions") return <SessionsOverview onBack={() => setView("lobby")} onJoinSession={handleJoinSession} />;
+  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} />;
   if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode} />;
   return (
     <ScoringView
@@ -227,11 +243,12 @@ function App() {
       onLeaderboard={() => { setRevealed(false); setRevealCount(0); setView("leaderboard"); }}
       onSetup={() => setView("setup")}
       roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode}
+      sessionStatus={sessionStatus} onToggleStatus={handleToggleSessionStatus}
     />
   );
 }
 
-function LobbyView({ onNewSession, onJoinSession }) {
+function LobbyView({ onNewSession, onJoinSession, onViewSessions }) {
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [joinError, setJoinError] = useState(null);
@@ -288,7 +305,112 @@ function LobbyView({ onNewSession, onJoinSession }) {
             </div>
             {joinError && <div style={{ marginTop: 10, fontSize: 12, color: C.wrong, fontFamily: "'Inter', sans-serif" }}>{joinError}</div>}
           </div>
+
+          <div style={{ textAlign: "center", marginTop: 8 }}>
+            <button onClick={onViewSessions} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>View All Sessions</button>
+          </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SessionsOverview({ onBack, onJoinSession }) {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const loadSessions = useCallback(() => {
+    setLoading(true);
+    fetch("/api/sessions")
+      .then(r => { if (!r.ok) throw new Error("Failed to load sessions"); return r.json(); })
+      .then(d => { setSessions(d.sessions); setLoading(false); })
+      .catch(err => { setError(err.message); setLoading(false); });
+  }, []);
+
+  useEffect(() => { loadSessions(); }, [loadSessions]);
+
+  const handleToggleStatus = (code, currentStatus) => {
+    const newStatus = currentStatus === "open" ? "closed" : "open";
+    fetch(`/api/session/${code}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    })
+      .then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then(() => {
+        setSessions(prev => prev.map(s => s.id === code ? { ...s, status: newStatus } : s));
+      })
+      .catch(() => {});
+  };
+
+  const handleJoin = (code) => {
+    onJoinSession(code).catch(() => {});
+  };
+
+  const formatDate = (iso) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>
+      <div style={{ position: "fixed", inset: 0, background: C.overlay, zIndex: 0 }} />
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 600, margin: "0 auto", padding: 20 }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <LogoMark size="lg" />
+          <div style={{ marginTop: 24, fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: 5, textTransform: "uppercase", color: C.sage, fontWeight: 300 }}>
+            All Sessions
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <button onClick={onBack} style={btnGhost}>← Back to Lobby</button>
+        </div>
+
+        {loading && <div style={{ textAlign: "center", color: C.sage, fontSize: 14 }}>Loading sessions...</div>}
+        {error && <div style={{ textAlign: "center", color: C.wrong, fontSize: 14 }}>{error}</div>}
+
+        {!loading && !error && sessions.length === 0 && (
+          <div style={{ textAlign: "center", color: C.sageDark, fontSize: 14, marginTop: 32 }}>No sessions yet.</div>
+        )}
+
+        {!loading && !error && sessions.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {sessions.map(s => {
+              const isClosed = (s.status || "open") === "closed";
+              return (
+                <div key={s.id} style={{ background: C.greenDark, borderRadius: 4, padding: "14px 18px", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: 2, color: C.cream }}>{s.id}</span>
+                      <span style={{
+                        fontSize: 9, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", padding: "2px 8px", borderRadius: 3,
+                        background: isClosed ? "rgba(196, 92, 92, 0.15)" : "rgba(90, 158, 106, 0.15)",
+                        color: isClosed ? C.wrong : C.correct,
+                        border: `1px solid ${isClosed ? "rgba(196, 92, 92, 0.3)" : "rgba(90, 158, 106, 0.3)"}`,
+                      }}>
+                        {isClosed ? "Closed" : "Open"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: C.sageDark, marginTop: 4 }}>
+                      {s.teamCount || 0} teams · {formatDate(s.updatedAt)}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <button onClick={() => handleToggleStatus(s.id, s.status || "open")} style={{ ...btnGhost, fontSize: 9, padding: "5px 10px" }}>
+                      {isClosed ? "Reopen" : "Close"}
+                    </button>
+                    <button onClick={() => handleJoin(s.id)} style={{ ...btnPrimary, fontSize: 9, padding: "5px 12px", letterSpacing: 2 }}>
+                      Join
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -302,7 +424,7 @@ function SessionBadge({ code }) {
   );
 }
 
-function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode }) {
+function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode, readOnly }) {
   return (
     <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ position: "fixed", inset: 0, background: C.overlay, zIndex: 0 }} />
@@ -315,10 +437,17 @@ function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveS
           </div>
         </div>
 
-        <div style={{ background: C.greenDark, borderRadius: 4, padding: "28px 24px", border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+        {readOnly && (
+          <div style={{ background: "rgba(196, 92, 92, 0.12)", border: `1px solid rgba(196, 92, 92, 0.3)`, borderRadius: 4, padding: "10px 16px", marginBottom: 16, textAlign: "center", fontSize: 12, color: C.wrong, fontFamily: "'Inter', sans-serif" }}>
+            This session is closed. Editing is disabled.
+          </div>
+        )}
+
+        <div style={{ background: C.greenDark, borderRadius: 4, padding: "28px 24px", border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.4)", opacity: readOnly ? 0.7 : 1 }}>
           <div style={{ marginBottom: 20 }}>
             <label style={labelStyle}>Number of teams: <span style={{ color: C.cream, fontWeight: 500 }}>{teamCount}</span></label>
             <input type="range" min={2} max={20} value={teamCount} onChange={e => setTeamCount(Number(e.target.value))}
+              disabled={readOnly}
               style={{ width: "100%", accentColor: C.greenSoft, marginTop: 6 }} />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: C.sageDark, marginTop: 2 }}><span>2</span><span>20</span></div>
           </div>
@@ -332,6 +461,7 @@ function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveS
                   <input
                     value={teams[i] || ""} placeholder={`Team ${i + 1}`}
                     onChange={e => { const n = [...teams]; while (n.length <= i) n.push(""); n[i] = e.target.value; setTeams(n); }}
+                    disabled={readOnly}
                     style={{ flex: 1, padding: "9px 12px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 13, background: C.greenDeep, color: C.cream, outline: "none", fontFamily: "'Inter', sans-serif" }}
                     onFocus={e => e.target.style.borderColor = C.greenSoft}
                     onBlur={e => e.target.style.borderColor = C.border}
@@ -341,7 +471,7 @@ function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveS
             </div>
           </div>
 
-          <button onClick={onStart} style={{ ...btnPrimary, width: "100%" }}>Start Scoring</button>
+          <button onClick={onStart} style={{ ...btnPrimary, width: "100%" }}>{readOnly ? "View Scores" : "Start Scoring"}</button>
           <button onClick={onLeaveSession} style={{ ...btnGhost, width: "100%", marginTop: 10, fontSize: 12 }}>New Quiz Session</button>
         </div>
       </div>
@@ -349,8 +479,9 @@ function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveS
   );
 }
 
-function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, roundsData, roundOrder, sessionCode }) {
+function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, roundsData, roundOrder, sessionCode, sessionStatus, onToggleStatus }) {
   const round = roundsData[activeRound];
+  const isClosed = sessionStatus === "closed";
   return (
     <div style={{ minHeight: "100vh", background: C.greenDeep, fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>
       {/* Top bar */}
@@ -360,10 +491,19 @@ function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScor
           <SessionBadge code={sessionCode} />
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button onClick={onToggleStatus} style={{ ...btnGhost, fontSize: 9, color: isClosed ? C.correct : C.wrong }}>
+            {isClosed ? "Reopen" : "Close"}
+          </button>
           <button onClick={onSetup} style={btnGhost}>Setup</button>
           <button onClick={onLeaderboard} style={btnAccent}>Leaderboard</button>
         </div>
       </div>
+
+      {isClosed && (
+        <div style={{ background: "rgba(196, 92, 92, 0.12)", borderBottom: `1px solid rgba(196, 92, 92, 0.3)`, padding: "8px 16px", textAlign: "center", fontSize: 12, color: C.wrong, fontFamily: "'Inter', sans-serif" }}>
+          Session closed — scoring is locked
+        </div>
+      )}
 
       {/* Round tabs */}
       <div style={{ padding: "10px 12px 8px", overflowX: "auto", whiteSpace: "nowrap", background: C.greenDeep, borderBottom: `1px solid ${C.borderLight}` }}>
@@ -434,7 +574,7 @@ function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScor
                     const val = scores[`${tIdx}-${q.id}`];
                     return (
                       <td key={q.id} style={{ ...tdStyle, background: bg, padding: 3 }}>
-                        <ScoreButton value={val} onChange={v => setScore(tIdx, q.id, v)} />
+                        <ScoreButton value={val} onChange={v => setScore(tIdx, q.id, v)} disabled={isClosed} />
                       </td>
                     );
                   })}
@@ -451,20 +591,20 @@ function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScor
   );
 }
 
-function ScoreButton({ value, onChange }) {
+function ScoreButton({ value, onChange, disabled }) {
   const isCorrect = value === 1;
   const isWrong = value === 0;
   return (
     <div style={{ display: "flex", gap: 2, justifyContent: "center" }}>
-      <button onClick={() => onChange(1)} style={{
-        width: 30, height: 30, borderRadius: 3, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700,
+      <button onClick={() => !disabled && onChange(1)} style={{
+        width: 30, height: 30, borderRadius: 3, border: "none", cursor: disabled ? "default" : "pointer", fontSize: 13, fontWeight: 700,
         background: isCorrect ? C.correct : C.greenMid, color: isCorrect ? C.creamBright : C.sageMuted,
-        transition: "all 0.12s", fontFamily: "'Inter', sans-serif",
+        transition: "all 0.12s", fontFamily: "'Inter', sans-serif", opacity: disabled && !isCorrect ? 0.5 : 1,
       }}>✓</button>
-      <button onClick={() => onChange(0)} style={{
-        width: 30, height: 30, borderRadius: 3, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700,
+      <button onClick={() => !disabled && onChange(0)} style={{
+        width: 30, height: 30, borderRadius: 3, border: "none", cursor: disabled ? "default" : "pointer", fontSize: 13, fontWeight: 700,
         background: isWrong ? C.wrong : C.greenMid, color: isWrong ? C.creamBright : C.sageMuted,
-        transition: "all 0.12s", fontFamily: "'Inter', sans-serif",
+        transition: "all 0.12s", fontFamily: "'Inter', sans-serif", opacity: disabled && !isWrong ? 0.5 : 1,
       }}>✗</button>
     </div>
   );

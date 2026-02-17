@@ -47,6 +47,7 @@ app.http("session-create", {
         activeRound: null,
         view: "setup",
         showAnswers: true,
+        status: "open",
         updatedAt: new Date().toISOString(),
       };
       await sessions.items.create(doc);
@@ -84,6 +85,62 @@ app.http("session-get", {
   },
 });
 
+// GET /api/sessions — list all sessions
+app.http("sessions-list", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "sessions",
+  handler: async (request, context) => {
+    try {
+      const { resources } = await sessions.items
+        .query("SELECT c.id, c.teamCount, c.status, c.updatedAt, c.view FROM c ORDER BY c.updatedAt DESC")
+        .fetchAll();
+      const list = resources.map(r => ({
+        id: r.id,
+        teamCount: r.teamCount || 0,
+        status: r.status || "open",
+        updatedAt: r.updatedAt,
+        view: r.view,
+      }));
+      return { jsonBody: { sessions: list } };
+    } catch (err) {
+      context.error("Failed to list sessions:", err.message);
+      return { status: 500, jsonBody: { error: "Failed to list sessions" } };
+    }
+  },
+});
+
+// PATCH /api/session/{code}/status — close or reopen a session
+app.http("session-status", {
+  methods: ["PATCH"],
+  authLevel: "anonymous",
+  route: "session/{code}/status",
+  handler: async (request, context) => {
+    const code = request.params.code.toUpperCase();
+    try {
+      const body = await request.json();
+      const newStatus = body.status;
+      if (newStatus !== "open" && newStatus !== "closed") {
+        return { status: 400, jsonBody: { error: "Status must be 'open' or 'closed'" } };
+      }
+      const { resource } = await sessions.item(code, code).read();
+      if (!resource) {
+        return { status: 404, jsonBody: { error: "Session not found" } };
+      }
+      resource.status = newStatus;
+      resource.updatedAt = new Date().toISOString();
+      await sessions.items.upsert(resource);
+      return { jsonBody: { ok: true, status: newStatus } };
+    } catch (err) {
+      if (err.code === 404) {
+        return { status: 404, jsonBody: { error: "Session not found" } };
+      }
+      context.error("Failed to update session status:", err.message);
+      return { status: 500, jsonBody: { error: "Failed to update session status" } };
+    }
+  },
+});
+
 // PUT /api/session/{code} — save/update a session by code
 app.http("session-save", {
   methods: ["PUT"],
@@ -93,6 +150,12 @@ app.http("session-save", {
     const code = request.params.code.toUpperCase();
     try {
       const body = await request.json();
+      // Read existing doc to preserve status field
+      let existingStatus = "open";
+      try {
+        const { resource } = await sessions.item(code, code).read();
+        if (resource?.status) existingStatus = resource.status;
+      } catch (_) { /* new session, use default */ }
       const doc = {
         id: code,
         teams: body.teams,
@@ -101,6 +164,7 @@ app.http("session-save", {
         activeRound: body.activeRound,
         view: body.view,
         showAnswers: body.showAnswers,
+        status: existingStatus,
         updatedAt: new Date().toISOString(),
       };
       await sessions.items.upsert(doc);
