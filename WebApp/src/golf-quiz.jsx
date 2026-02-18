@@ -316,6 +316,7 @@ function App() {
       showAnswers={showAnswers} setShowAnswers={setShowAnswers}
       onLeaderboard={() => { setRevealed(false); setRevealCount(0); setView("leaderboard"); }}
       onSetup={() => setView("setup")}
+      onLeaveSession={handleLeaveSession}
       roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode}
       sessionStatus={sessionStatus} onToggleStatus={handleToggleSessionStatus}
       answers={answers}

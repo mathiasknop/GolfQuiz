@@ -19,7 +19,7 @@ function ScoreButton({ value, onChange, disabled }) {
   );
 }
 
-export default function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, roundsData, roundOrder, sessionCode, sessionStatus, onToggleStatus, answers }) {
+export default function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, onLeaveSession, roundsData, roundOrder, sessionCode, sessionStatus, onToggleStatus, answers }) {
   const round = roundsData[activeRound];
   const isClosed = sessionStatus === "closed";
   return (
@@ -31,6 +31,7 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
           <SessionBadge code={sessionCode} />
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button onClick={onLeaveSession} style={{ ...btnGhost, fontSize: 9 }}>Exit</button>
           <button onClick={onToggleStatus} style={{ ...btnGhost, fontSize: 9, color: isClosed ? C.correct : C.wrong }}>
             {isClosed ? "Reopen" : "Close"}
           </button>
