@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { DEFAULT_TEAMS, C, LogoMark, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, btnPrimary } from "./styles.jsx";
+import { DEFAULT_TEAMS, C, LogoMark, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, HOST_PIN_KEY, PLAYER_TOKEN_KEY, btnPrimary } from "./styles.jsx";
 import LobbyView from "./LobbyView.jsx";
 import SessionsOverview from "./SessionsOverview.jsx";
 import SetupView from "./SetupView.jsx";
@@ -8,6 +8,7 @@ import LeaderboardView from "./LeaderboardView.jsx";
 import PlayerView from "./PlayerView.jsx";
 import ManageView from "./ManageView.jsx";
 import GuideView from "./GuideView.jsx";
+import AdminView from "./AdminView.jsx";
 
 function App() {
   const [roundsData, setRoundsData] = useState(null);
@@ -30,6 +31,7 @@ function App() {
   const [role, setRole] = useState("host"); // "host" | "player"
   const [playerTeamIdx, setPlayerTeamIdx] = useState(null);
   const [answers, setAnswers] = useState({});
+  const [hostPin, setHostPin] = useState(() => localStorage.getItem(HOST_PIN_KEY));
 
   const initialized = useRef(false);
   const saveTimer = useRef(null);
@@ -92,9 +94,10 @@ function App() {
     if (!initialized.current || !sessionCode || view === "lobby" || sessionStatus === "closed" || role === "player") return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
+      const pin = localStorage.getItem(HOST_PIN_KEY) || "";
       fetch(`/api/session/${sessionCode}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-host-pin": pin },
         body: JSON.stringify({ teams, teamCount, scores, activeRound, view, showAnswers }),
       }).catch(() => {}).finally(() => { saveTimer.current = null; });
     }, 500);
@@ -103,7 +106,7 @@ function App() {
 
   // Poll for remote changes every 3s (real-time sync across devices)
   useEffect(() => {
-    if (!initialized.current || !sessionCode || view === "lobby" || view === "sessions" || view === "manage" || view === "guide") return;
+    if (!initialized.current || !sessionCode || view === "lobby" || view === "sessions" || view === "manage" || view === "guide" || view === "admin") return;
     const poll = setInterval(() => {
       if (saveTimer.current) return;
       fetch(`/api/session/${sessionCode}`)
@@ -131,27 +134,51 @@ function App() {
         setRole("host");
         localStorage.setItem(ROLE_KEY, "host");
         localStorage.removeItem(TEAM_IDX_KEY);
+        // Store host PIN for authenticated writes
+        if (d.hostPin) {
+          localStorage.setItem(HOST_PIN_KEY, d.hostPin);
+          setHostPin(d.hostPin);
+        }
         restoreSession(d.session, roundOrder);
         setView("setup");
         initialized.current = true;
       });
   }, [roundOrder, restoreSession]);
 
-  const handleJoinSession = useCallback((code) => {
+  const handleJoinSession = useCallback((code, pin) => {
     return fetch(`/api/session/${code}`)
       .then(r => { if (!r.ok) throw new Error("Session not found"); return r.json(); })
       .then(d => {
         setRole("host");
         localStorage.setItem(ROLE_KEY, "host");
         localStorage.removeItem(TEAM_IDX_KEY);
+        // Store host PIN for authenticated writes
+        if (pin) {
+          localStorage.setItem(HOST_PIN_KEY, pin);
+          setHostPin(pin);
+        }
         restoreSession(d.session, roundOrder);
         initialized.current = true;
       });
   }, [roundOrder, restoreSession]);
 
   const handleJoinAsPlayer = useCallback((code, teamIdx) => {
-    return fetch(`/api/session/${code}`)
-      .then(r => { if (!r.ok) throw new Error("Session not found"); return r.json(); })
+    // First join the session to get a player token
+    return fetch(`/api/session/${code}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ teamIdx }),
+    })
+      .then(r => { if (!r.ok) throw new Error("Failed to join session"); return r.json(); })
+      .then(d => {
+        // Store player token for authenticated answer submission
+        if (d.playerToken) {
+          localStorage.setItem(PLAYER_TOKEN_KEY, d.playerToken);
+        }
+        // Now load session data
+        return fetch(`/api/session/${code}`)
+          .then(r => { if (!r.ok) throw new Error("Session not found"); return r.json(); });
+      })
       .then(d => {
         restoreSession(d.session, roundOrder);
         setRole("player");
@@ -167,6 +194,8 @@ function App() {
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(ROLE_KEY);
     localStorage.removeItem(TEAM_IDX_KEY);
+    localStorage.removeItem(HOST_PIN_KEY);
+    localStorage.removeItem(PLAYER_TOKEN_KEY);
     setSessionCode(null);
     setView("lobby");
     setTeams([...DEFAULT_TEAMS]);
@@ -180,15 +209,17 @@ function App() {
     setRevealed(false);
     setRole("host");
     setPlayerTeamIdx(null);
+    setHostPin(null);
     initialized.current = false;
   }, [roundOrder]);
 
   const handleToggleSessionStatus = useCallback(() => {
     if (!sessionCode) return Promise.resolve();
     const newStatus = sessionStatus === "open" ? "closed" : "open";
+    const pin = localStorage.getItem(HOST_PIN_KEY) || "";
     return fetch(`/api/session/${sessionCode}/status`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-host-pin": pin },
       body: JSON.stringify({ status: newStatus }),
     })
       .then(r => { if (!r.ok) throw new Error("Failed to update status"); return r.json(); })
@@ -267,11 +298,12 @@ function App() {
     );
   }
 
-  if (view === "lobby") return <LobbyView onNewSession={handleNewSession} onJoinSession={handleJoinSession} onViewSessions={() => setView("sessions")} onJoinAsPlayer={handleJoinAsPlayer} onManageQuiz={() => setView("manage")} onGuide={() => setView("guide")} />;
-  if (view === "sessions") return <SessionsOverview onBack={() => setView("lobby")} onJoinSession={handleJoinSession} />;
+  if (view === "lobby") return <LobbyView onNewSession={handleNewSession} onJoinSession={handleJoinSession} onViewSessions={() => setView("sessions")} onJoinAsPlayer={handleJoinAsPlayer} onManageQuiz={() => setView("manage")} onGuide={() => setView("guide")} onAdmin={() => setView("admin")} />;
+  if (view === "sessions") return <SessionsOverview onBack={() => setView("lobby")} />;
   if (view === "manage") return <ManageView roundsData={roundsData} roundOrder={roundOrder} onBack={() => setView("lobby")} onRoundsChanged={handleRoundsChanged} />;
   if (view === "guide") return <GuideView onBack={() => setView("lobby")} />;
-  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} hasScores={Object.keys(scores).length > 0} />;
+  if (view === "admin") return <AdminView onBack={() => setView("lobby")} />;
+  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} hasScores={Object.keys(scores).length > 0} hostPin={hostPin} />;
   if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode} />;
   return (
     <ScoringView

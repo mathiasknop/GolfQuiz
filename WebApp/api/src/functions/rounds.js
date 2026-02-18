@@ -18,6 +18,15 @@ function slugify(name) {
     .slice(0, 30);
 }
 
+function requireAdminKey(request) {
+  const key = request.headers.get("x-admin-key");
+  const expected = process.env.ADMIN_KEY;
+  if (!expected || key !== expected) {
+    return { status: 403, jsonBody: { error: "Admin key required" } };
+  }
+  return null;
+}
+
 // ── 1. PATCH /api/rounds/reorder ─────────────────────────────────────
 // Registered FIRST so "reorder" isn't matched as a {roundId} param.
 app.http("rounds-reorder", {
@@ -25,6 +34,8 @@ app.http("rounds-reorder", {
   authLevel: "anonymous",
   route: "rounds/reorder",
   handler: async (request, context) => {
+    const authErr = requireAdminKey(request);
+    if (authErr) return authErr;
     try {
       const body = await request.json();
       const { order } = body;
@@ -54,6 +65,8 @@ app.http("rounds-update", {
   authLevel: "anonymous",
   route: "rounds/{roundId}",
   handler: async (request, context) => {
+    const authErr = requireAdminKey(request);
+    if (authErr) return authErr;
     const { roundId } = request.params;
     try {
       const body = await request.json();
@@ -77,6 +90,8 @@ app.http("rounds-create", {
   authLevel: "anonymous",
   route: "rounds",
   handler: async (request, context) => {
+    const authErr = requireAdminKey(request);
+    if (authErr) return authErr;
     try {
       const body = await request.json();
       const { name, subtitle, type, maxPts, questions } = body;
@@ -123,6 +138,8 @@ app.http("rounds-delete", {
   authLevel: "anonymous",
   route: "rounds/{roundId}",
   handler: async (request, context) => {
+    const authErr = requireAdminKey(request);
+    if (authErr) return authErr;
     const { roundId } = request.params;
     try {
       await container.item(roundId, roundId).delete();

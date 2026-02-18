@@ -60,11 +60,51 @@ function deepClone(obj) {
 }
 
 export default function ManageView({ roundsData, roundOrder, onBack, onRoundsChanged }) {
+  const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem("gq-admin-key") || "");
+  const [unlocked, setUnlocked] = useState(() => !!sessionStorage.getItem("gq-admin-key"));
+  const [unlockInput, setUnlockInput] = useState("");
+  const [unlockError, setUnlockError] = useState(null);
+  const [unlockBusy, setUnlockBusy] = useState(false);
+
   const [selectedRoundId, setSelectedRoundId] = useState(null);
   const [editingQuestionIdx, setEditingQuestionIdx] = useState(null);
   const [draftRound, setDraftRound] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+  function handleUnlock() {
+    const key = unlockInput.trim();
+    if (!key) return;
+    setUnlockBusy(true);
+    setUnlockError(null);
+    fetch("/api/sessions", { headers: { "x-admin-key": key } })
+      .then(r => {
+        if (r.status === 403) throw new Error("Invalid admin key");
+        if (!r.ok) throw new Error("Failed to verify");
+        return r.json();
+      })
+      .then(() => {
+        sessionStorage.setItem("gq-admin-key", key);
+        setAdminKey(key);
+        setUnlocked(true);
+        setUnlockBusy(false);
+      })
+      .catch(err => {
+        setUnlockError(err.message);
+        setUnlockBusy(false);
+      });
+  }
+
+  function authHeaders() {
+    return { "Content-Type": "application/json", "x-admin-key": adminKey };
+  }
+
+  function handleAuthError() {
+    sessionStorage.removeItem("gq-admin-key");
+    setAdminKey("");
+    setUnlocked(false);
+    setUnlockError("Session expired. Please enter the admin key again.");
+  }
 
   const orderedRounds = (roundOrder || []).map((id) => ({ id, ...(roundsData || {})[id] })).filter((r) => r.name);
 
@@ -149,9 +189,10 @@ export default function ManageView({ roundsData, roundOrder, onBack, onRoundsCha
         finalId = slugify(draftRound.name || "round");
         const res = await fetch("/api/rounds", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders(),
           body: JSON.stringify({ ...body, id: finalId }),
         });
+        if (res.status === 403) { handleAuthError(); return; }
         if (!res.ok) throw new Error("Create failed");
         const created = await res.json();
         newRoundsData[finalId] = created;
@@ -159,9 +200,10 @@ export default function ManageView({ roundsData, roundOrder, onBack, onRoundsCha
       } else {
         const res = await fetch(`/api/rounds/${finalId}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders(),
           body: JSON.stringify(body),
         });
+        if (res.status === 403) { handleAuthError(); return; }
         if (!res.ok) throw new Error("Save failed");
         const updated = await res.json();
         newRoundsData[finalId] = updated;
@@ -182,7 +224,8 @@ export default function ManageView({ roundsData, roundOrder, onBack, onRoundsCha
     if (!selectedRoundId || selectedRoundId === "__new__" || saving) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/rounds/${selectedRoundId}`, { method: "DELETE" });
+      const res = await fetch(`/api/rounds/${selectedRoundId}`, { method: "DELETE", headers: { "x-admin-key": adminKey } });
+      if (res.status === 403) { handleAuthError(); return; }
       if (!res.ok) throw new Error("Delete failed");
       const newRoundsData = deepClone(roundsData);
       delete newRoundsData[selectedRoundId];
@@ -206,9 +249,10 @@ export default function ManageView({ roundsData, roundOrder, onBack, onRoundsCha
     try {
       const res = await fetch("/api/rounds/reorder", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ order: newOrder }),
       });
+      if (res.status === 403) { handleAuthError(); return; }
       if (!res.ok) throw new Error("Reorder failed");
       onRoundsChanged(roundsData, newOrder);
     } catch (e) {
@@ -507,6 +551,37 @@ export default function ManageView({ roundsData, roundOrder, onBack, onRoundsCha
   );
 
   /* ---- main render ---- */
+  if (!unlocked) {
+    return (
+      <div>
+        <div style={overlay} />
+        <div style={darkOverlay} />
+        <div style={{ ...scrollWrap, justifyContent: "center", minHeight: "100vh" }}>
+          <div style={{ maxWidth: 380, width: "100%", textAlign: "center" }}>
+            <LogoMark size="lg" />
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: C.cream, marginTop: 24, marginBottom: 8, letterSpacing: 3, textTransform: "uppercase" }}>Quiz Management</h2>
+            <p style={{ fontSize: 13, color: C.sage, marginBottom: 24 }}>Enter the admin key to access quiz management.</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={unlockInput}
+                onChange={e => { setUnlockInput(e.target.value); setUnlockError(null); }}
+                onKeyDown={e => e.key === "Enter" && handleUnlock()}
+                type="password"
+                placeholder="Admin key"
+                style={{ ...inputStyle, flex: 1, textAlign: "center" }}
+              />
+              <button onClick={handleUnlock} disabled={unlockBusy || !unlockInput.trim()} style={{ ...btnPrimary, padding: "10px 20px", opacity: (unlockBusy || !unlockInput.trim()) ? 0.6 : 1 }}>
+                {unlockBusy ? "..." : "Unlock"}
+              </button>
+            </div>
+            {unlockError && <div style={{ marginTop: 10, fontSize: 12, color: C.wrong }}>{unlockError}</div>}
+            <button onClick={onBack} style={{ ...btnGhost, marginTop: 20, fontSize: 14 }}>{"\u2190"} Back</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div style={overlay} />

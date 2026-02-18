@@ -61,6 +61,8 @@ function SessionBadge({ code }) {
 const SESSION_KEY = "gq-session-code";
 const ROLE_KEY = "gq-role";
 const TEAM_IDX_KEY = "gq-team-idx";
+const HOST_PIN_KEY = "gq-host-pin";
+const PLAYER_TOKEN_KEY = "gq-player-token";
 
 // Shared styles
 const labelStyle = {
@@ -103,4 +105,4 @@ const tdStyle = {
   fontFamily: "'Inter', sans-serif",
 };
 
-export { DEFAULT_TEAMS, C, HERO_BG, LOGO_DATA_URI, LogoMark, SessionBadge, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, labelStyle, btnPrimary, btnAccent, btnGhost, thStyle, ansCell, tdStyle };
+export { DEFAULT_TEAMS, C, HERO_BG, LOGO_DATA_URI, LogoMark, SessionBadge, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, HOST_PIN_KEY, PLAYER_TOKEN_KEY, labelStyle, btnPrimary, btnAccent, btnGhost, thStyle, ansCell, tdStyle };

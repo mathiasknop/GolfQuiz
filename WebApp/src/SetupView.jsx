@@ -1,6 +1,6 @@
 import { C, HERO_BG, LogoMark, SessionBadge, labelStyle, btnPrimary, btnGhost } from "./styles.jsx";
 
-export default function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode, readOnly, hasScores }) {
+export default function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode, readOnly, hasScores, hostPin }) {
   return (
     <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ position: "fixed", inset: 0, background: C.overlay, zIndex: 0 }} />
@@ -8,6 +8,12 @@ export default function SetupView({ teams, setTeams, teamCount, setTeamCount, on
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <LogoMark size="lg" />
           <div style={{ marginTop: 16 }}><SessionBadge code={sessionCode} /></div>
+          {hostPin && (
+            <div style={{ marginTop: 10, fontFamily: "'Inter', sans-serif", fontSize: 12, color: C.sage }}>
+              Host PIN: <span style={{ color: C.cream, fontWeight: 700, letterSpacing: 3, fontSize: 16 }}>{hostPin}</span>
+              <div style={{ fontSize: 10, color: C.sageDark, marginTop: 2 }}>Save this PIN to rejoin as host</div>
+            </div>
+          )}
           <div style={{ marginTop: 12, fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: 5, textTransform: "uppercase", color: C.sage, fontWeight: 300 }}>
             Quiz Session
           </div>

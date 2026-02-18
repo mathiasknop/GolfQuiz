@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { C, HERO_BG, LogoMark, btnPrimary, btnGhost } from "./styles.jsx";
 
-export default function LobbyView({ onNewSession, onJoinSession, onViewSessions, onJoinAsPlayer, onManageQuiz, onGuide }) {
+export default function LobbyView({ onNewSession, onJoinSession, onViewSessions, onJoinAsPlayer, onManageQuiz, onGuide, onAdmin }) {
   const [joinCode, setJoinCode] = useState("");
+  const [joinPin, setJoinPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [joinError, setJoinError] = useState(null);
 
@@ -20,10 +21,11 @@ export default function LobbyView({ onNewSession, onJoinSession, onViewSessions,
 
   const handleJoin = () => {
     const code = joinCode.trim().toUpperCase();
-    if (!code) return;
+    const pin = joinPin.trim();
+    if (!code || !pin) return;
     setBusy(true);
     setJoinError(null);
-    onJoinSession(code).catch(() => {
+    onJoinSession(code, pin).catch(() => {
       setJoinError("Session not found. Check the code and try again.");
       setBusy(false);
     });
@@ -81,8 +83,8 @@ export default function LobbyView({ onNewSession, onJoinSession, onViewSessions,
 
           {/* Host: Join existing */}
           <div style={{ background: C.greenDark, borderRadius: 4, padding: "24px", border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
-            <div style={{ fontSize: 13, color: C.sage, marginBottom: 14, fontFamily: "'Inter', sans-serif" }}>Join an existing session</div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ fontSize: 13, color: C.sage, marginBottom: 14, fontFamily: "'Inter', sans-serif" }}>Join an existing session as host</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input
                 value={joinCode} placeholder="e.g. GQ-7K3M"
                 onChange={e => { setJoinCode(e.target.value.toUpperCase()); setJoinError(null); }}
@@ -91,7 +93,18 @@ export default function LobbyView({ onNewSession, onJoinSession, onViewSessions,
                 onFocus={e => e.target.style.borderColor = C.greenSoft}
                 onBlur={e => e.target.style.borderColor = C.border}
               />
-              <button onClick={handleJoin} disabled={busy || !joinCode.trim()} style={{ ...btnPrimary, opacity: (busy || !joinCode.trim()) ? 0.6 : 1, padding: "10px 20px" }}>Join</button>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={joinPin} placeholder="Host PIN"
+                type="password" inputMode="numeric" maxLength={4}
+                onChange={e => { setJoinPin(e.target.value.replace(/[^0-9]/g, "")); setJoinError(null); }}
+                onKeyDown={e => e.key === "Enter" && handleJoin()}
+                style={{ width: 100, padding: "10px 14px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 15, background: C.greenDeep, color: C.cream, outline: "none", fontFamily: "'Inter', sans-serif", letterSpacing: 4, textAlign: "center" }}
+                onFocus={e => e.target.style.borderColor = C.greenSoft}
+                onBlur={e => e.target.style.borderColor = C.border}
+              />
+              <button onClick={handleJoin} disabled={busy || !joinCode.trim() || !joinPin.trim()} style={{ ...btnPrimary, flex: 1, opacity: (busy || !joinCode.trim() || !joinPin.trim()) ? 0.6 : 1, padding: "10px 20px" }}>Join as Host</button>
             </div>
             {joinError && <div style={{ marginTop: 10, fontSize: 12, color: C.wrong, fontFamily: "'Inter', sans-serif" }}>{joinError}</div>}
           </div>
@@ -144,6 +157,7 @@ export default function LobbyView({ onNewSession, onJoinSession, onViewSessions,
             <button onClick={onViewSessions} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>View All Sessions</button>
             <button onClick={onManageQuiz} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>Manage Quiz</button>
             <button onClick={onGuide} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>Help &amp; Guide</button>
+            <button onClick={onAdmin} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>Admin</button>
           </div>
         </div>
       </div>
