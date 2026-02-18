@@ -85,7 +85,7 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
                 type="password" inputMode="numeric" maxLength={4}
                 onChange={e => { setJoinPin(e.target.value.replace(/[^0-9]/g, "")); setJoinError(null); }}
                 onKeyDown={e => e.key === "Enter" && handleJoin()}
-                style={{ width: 100, padding: "10px 14px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 15, background: C.greenDeep, color: C.cream, outline: "none", fontFamily: "'Inter', sans-serif", letterSpacing: 4, textAlign: "center" }}
+                style={{ width: 130, padding: "10px 14px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 15, background: C.greenDeep, color: C.cream, outline: "none", fontFamily: "'Inter', sans-serif", letterSpacing: 4, textAlign: "center" }}
                 onFocus={e => e.target.style.borderColor = C.greenSoft}
                 onBlur={e => e.target.style.borderColor = C.border}
               />
