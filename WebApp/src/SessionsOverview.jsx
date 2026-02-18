@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
-import { C, HERO_BG, LogoMark, btnPrimary, btnGhost } from "./styles.jsx";
+import { C, HERO_BG, LogoMark, btnGhost } from "./styles.jsx";
 
-export default function SessionsOverview({ onBack, onJoinSession }) {
+export default function SessionsOverview({ adminKey, onBack }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const loadSessions = useCallback(() => {
     setLoading(true);
-    fetch("/api/sessions")
+    fetch("/api/sessions", { headers: { "x-admin-key": adminKey } })
       .then(r => { if (!r.ok) throw new Error("Failed to load sessions"); return r.json(); })
-      .then(d => { setSessions(d.sessions); setLoading(false); })
+      .then(d => { setSessions(d.sessions || []); setLoading(false); })
       .catch(err => { setError(err.message); setLoading(false); });
-  }, []);
+  }, [adminKey]);
 
   useEffect(() => { loadSessions(); }, [loadSessions]);
 
@@ -20,7 +20,7 @@ export default function SessionsOverview({ onBack, onJoinSession }) {
     const newStatus = currentStatus === "open" ? "closed" : "open";
     fetch(`/api/session/${code}/status`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
       body: JSON.stringify({ status: newStatus }),
     })
       .then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); })
@@ -28,10 +28,6 @@ export default function SessionsOverview({ onBack, onJoinSession }) {
         setSessions(prev => prev.map(s => s.id === code ? { ...s, status: newStatus } : s));
       })
       .catch(() => {});
-  };
-
-  const handleJoin = (code) => {
-    onJoinSession(code).catch(() => {});
   };
 
   const formatDate = (iso) => {
@@ -52,7 +48,7 @@ export default function SessionsOverview({ onBack, onJoinSession }) {
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <button onClick={onBack} style={btnGhost}>&larr; Back to Lobby</button>
+          <button onClick={onBack} style={btnGhost}>&larr; Back</button>
         </div>
 
         {loading && <div style={{ textAlign: "center", color: C.sage, fontSize: 14 }}>Loading sessions...</div>}
@@ -87,9 +83,6 @@ export default function SessionsOverview({ onBack, onJoinSession }) {
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                     <button onClick={() => handleToggleStatus(s.id, s.status || "open")} style={{ ...btnGhost, fontSize: 9, padding: "5px 10px" }}>
                       {isClosed ? "Reopen" : "Close"}
-                    </button>
-                    <button onClick={() => handleJoin(s.id)} style={{ ...btnPrimary, fontSize: 9, padding: "5px 12px", letterSpacing: 2 }}>
-                      Join
                     </button>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { DEFAULT_TEAMS, C, LogoMark, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, btnPrimary } from "./styles.jsx";
+import { DEFAULT_TEAMS, C, HERO_BG, LogoMark, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, HOST_PIN_KEY, TEAM_PIN_KEY, btnPrimary, btnGhost } from "./styles.jsx";
 import LobbyView from "./LobbyView.jsx";
+import AdminLobbyView from "./AdminLobbyView.jsx";
 import SessionsOverview from "./SessionsOverview.jsx";
 import SetupView from "./SetupView.jsx";
 import ScoringView from "./ScoringView.jsx";
@@ -8,6 +9,9 @@ import LeaderboardView from "./LeaderboardView.jsx";
 import PlayerView from "./PlayerView.jsx";
 import ManageView from "./ManageView.jsx";
 import GuideView from "./GuideView.jsx";
+import AdminView from "./AdminView.jsx";
+
+const isAdmin = window.location.pathname.startsWith("/admin");
 
 function App() {
   const [roundsData, setRoundsData] = useState(null);
@@ -30,6 +34,13 @@ function App() {
   const [role, setRole] = useState("host"); // "host" | "player"
   const [playerTeamIdx, setPlayerTeamIdx] = useState(null);
   const [answers, setAnswers] = useState({});
+  const [hostPin, setHostPin] = useState(() => localStorage.getItem(HOST_PIN_KEY));
+
+  // Admin key state (gates all /admin views)
+  const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem("gq-admin-key") || "");
+  const [adminUnlockInput, setAdminUnlockInput] = useState("");
+  const [adminUnlockError, setAdminUnlockError] = useState(null);
+  const [adminUnlockBusy, setAdminUnlockBusy] = useState(false);
 
   const initialized = useRef(false);
   const saveTimer = useRef(null);
@@ -52,9 +63,13 @@ function App() {
     if (savedTeamIdx !== null) setPlayerTeamIdx(parseInt(savedTeamIdx));
   }, []);
 
-  // Load quiz data + try to resume session from localStorage
+  // Load quiz data + try to resume session from localStorage (or auto-join via QR URL params)
   useEffect(() => {
     const savedCode = localStorage.getItem(SESSION_KEY);
+    const urlParams = new URLSearchParams(window.location.search);
+    const qrSession = urlParams.get("s");
+    const qrTeam = urlParams.get("t");
+    const qrPin = urlParams.get("p");
 
     const quizPromise = fetch("/api/quiz-data").then(r => {
       if (!r.ok) throw new Error(`Failed to load quiz data (${r.status})`);
@@ -69,6 +84,22 @@ function App() {
       .then(([quizData, session]) => {
         setRoundsData(quizData.rounds);
         setRoundOrder(quizData.roundOrder);
+
+        // QR code auto-join takes priority
+        if (qrSession && qrTeam !== null && qrPin) {
+          window.history.replaceState({}, "", window.location.pathname);
+          const teamIdx = parseInt(qrTeam);
+          if (!isNaN(teamIdx)) {
+            setActiveRound(quizData.roundOrder[0]);
+            setLoading(false);
+            initialized.current = true;
+            handleJoinAsPlayer(qrSession, teamIdx, qrPin).catch(() => {
+              setView("lobby");
+            });
+            return;
+          }
+        }
+
         if (session) {
           restoreSession(session, quizData.roundOrder);
         } else {
@@ -85,16 +116,17 @@ function App() {
         setError(err.message);
         setLoading(false);
       });
-  }, [restoreSession]);
+  }, [restoreSession]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-save session to Cosmos DB (debounced 500ms) — host only
   useEffect(() => {
     if (!initialized.current || !sessionCode || view === "lobby" || sessionStatus === "closed" || role === "player") return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
+      const pin = localStorage.getItem(HOST_PIN_KEY) || "";
       fetch(`/api/session/${sessionCode}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-host-pin": pin },
         body: JSON.stringify({ teams, teamCount, scores, activeRound, view, showAnswers }),
       }).catch(() => {}).finally(() => { saveTimer.current = null; });
     }, 500);
@@ -103,7 +135,7 @@ function App() {
 
   // Poll for remote changes every 3s (real-time sync across devices)
   useEffect(() => {
-    if (!initialized.current || !sessionCode || view === "lobby" || view === "sessions" || view === "manage" || view === "guide") return;
+    if (!initialized.current || !sessionCode || view === "lobby" || view === "sessions" || view === "manage" || view === "guide" || view === "admin") return;
     const poll = setInterval(() => {
       if (saveTimer.current) return;
       fetch(`/api/session/${sessionCode}`)
@@ -131,27 +163,49 @@ function App() {
         setRole("host");
         localStorage.setItem(ROLE_KEY, "host");
         localStorage.removeItem(TEAM_IDX_KEY);
+        // Store host PIN for authenticated writes
+        if (d.hostPin) {
+          localStorage.setItem(HOST_PIN_KEY, d.hostPin);
+          setHostPin(d.hostPin);
+        }
         restoreSession(d.session, roundOrder);
         setView("setup");
         initialized.current = true;
       });
   }, [roundOrder, restoreSession]);
 
-  const handleJoinSession = useCallback((code) => {
+  const handleJoinSession = useCallback((code, pin) => {
     return fetch(`/api/session/${code}`)
       .then(r => { if (!r.ok) throw new Error("Session not found"); return r.json(); })
       .then(d => {
         setRole("host");
         localStorage.setItem(ROLE_KEY, "host");
         localStorage.removeItem(TEAM_IDX_KEY);
+        // Store host PIN for authenticated writes
+        if (pin) {
+          localStorage.setItem(HOST_PIN_KEY, pin);
+          setHostPin(pin);
+        }
         restoreSession(d.session, roundOrder);
         initialized.current = true;
       });
   }, [roundOrder, restoreSession]);
 
-  const handleJoinAsPlayer = useCallback((code, teamIdx) => {
-    return fetch(`/api/session/${code}`)
-      .then(r => { if (!r.ok) throw new Error("Session not found"); return r.json(); })
+  const handleJoinAsPlayer = useCallback((code, teamIdx, teamPin) => {
+    // Validate team PIN with the server
+    return fetch(`/api/session/${code}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ teamIdx, teamPin }),
+    })
+      .then(r => { if (!r.ok) throw new Error("Failed to join session"); return r.json(); })
+      .then(() => {
+        // Store team PIN for authenticated answer submission
+        localStorage.setItem(TEAM_PIN_KEY, teamPin);
+        // Now load session data
+        return fetch(`/api/session/${code}`)
+          .then(r => { if (!r.ok) throw new Error("Session not found"); return r.json(); });
+      })
       .then(d => {
         restoreSession(d.session, roundOrder);
         setRole("player");
@@ -167,6 +221,8 @@ function App() {
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(ROLE_KEY);
     localStorage.removeItem(TEAM_IDX_KEY);
+    localStorage.removeItem(HOST_PIN_KEY);
+    localStorage.removeItem(TEAM_PIN_KEY);
     setSessionCode(null);
     setView("lobby");
     setTeams([...DEFAULT_TEAMS]);
@@ -180,15 +236,17 @@ function App() {
     setRevealed(false);
     setRole("host");
     setPlayerTeamIdx(null);
+    setHostPin(null);
     initialized.current = false;
   }, [roundOrder]);
 
   const handleToggleSessionStatus = useCallback(() => {
     if (!sessionCode) return Promise.resolve();
     const newStatus = sessionStatus === "open" ? "closed" : "open";
+    const pin = localStorage.getItem(HOST_PIN_KEY) || "";
     return fetch(`/api/session/${sessionCode}/status`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-host-pin": pin },
       body: JSON.stringify({ status: newStatus }),
     })
       .then(r => { if (!r.ok) throw new Error("Failed to update status"); return r.json(); })
@@ -267,11 +325,62 @@ function App() {
     );
   }
 
-  if (view === "lobby") return <LobbyView onNewSession={handleNewSession} onJoinSession={handleJoinSession} onViewSessions={() => setView("sessions")} onJoinAsPlayer={handleJoinAsPlayer} onManageQuiz={() => setView("manage")} onGuide={() => setView("guide")} />;
-  if (view === "sessions") return <SessionsOverview onBack={() => setView("lobby")} onJoinSession={handleJoinSession} />;
-  if (view === "manage") return <ManageView roundsData={roundsData} roundOrder={roundOrder} onBack={() => setView("lobby")} onRoundsChanged={handleRoundsChanged} />;
+  // Admin key gate — all /admin views require unlocking first
+  if (isAdmin && !adminKey) {
+    const handleAdminUnlock = () => {
+      const key = adminUnlockInput.trim();
+      if (!key) return;
+      setAdminUnlockBusy(true);
+      setAdminUnlockError(null);
+      fetch("/api/sessions", { headers: { "x-admin-key": key } })
+        .then(r => {
+          if (r.status === 403) throw new Error("Invalid admin key");
+          if (!r.ok) throw new Error("Failed to verify");
+          return r.json();
+        })
+        .then(() => {
+          sessionStorage.setItem("gq-admin-key", key);
+          setAdminKey(key);
+          setAdminUnlockBusy(false);
+        })
+        .catch(err => { setAdminUnlockError(err.message); setAdminUnlockBusy(false); });
+    };
+    const inputStyle = { width: "100%", padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${C.sage}44`, background: "rgba(255,255,255,0.08)", color: C.cream, fontFamily: "'Inter',sans-serif", fontSize: 14, outline: "none", boxSizing: "border-box" };
+    return (
+      <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, fontFamily: "'Inter', sans-serif" }}>
+        <div style={{ position: "fixed", inset: 0, background: C.overlay, zIndex: 0 }} />
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 20 }}>
+          <div style={{ maxWidth: 380, width: "100%", textAlign: "center" }}>
+            <LogoMark size="lg" />
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: C.cream, marginTop: 24, marginBottom: 8, letterSpacing: 3, textTransform: "uppercase" }}>Admin</h2>
+            <p style={{ fontSize: 13, color: C.sage, marginBottom: 24 }}>Enter the admin key to continue.</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={adminUnlockInput}
+                onChange={e => { setAdminUnlockInput(e.target.value); setAdminUnlockError(null); }}
+                onKeyDown={e => e.key === "Enter" && handleAdminUnlock()}
+                type="password" placeholder="Admin key"
+                style={{ ...inputStyle, flex: 1, textAlign: "center" }}
+              />
+              <button onClick={handleAdminUnlock} disabled={adminUnlockBusy || !adminUnlockInput.trim()} style={{ ...btnPrimary, padding: "10px 20px", opacity: (adminUnlockBusy || !adminUnlockInput.trim()) ? 0.6 : 1 }}>
+                {adminUnlockBusy ? "..." : "Unlock"}
+              </button>
+            </div>
+            {adminUnlockError && <div style={{ marginTop: 10, fontSize: 12, color: C.wrong }}>{adminUnlockError}</div>}
+            <button onClick={() => window.location.href = "/"} style={{ ...btnGhost, marginTop: 20, fontSize: 14 }}>{"\u2190"} Back to Quiz</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "lobby" && isAdmin) return <AdminLobbyView onNewSession={handleNewSession} onViewSessions={() => setView("sessions")} onManageQuiz={() => setView("manage")} onAdmin={() => setView("admin")} onGuide={() => setView("guide")} />;
+  if (view === "lobby") return <LobbyView onJoinSession={handleJoinSession} onJoinAsPlayer={handleJoinAsPlayer} onGuide={() => setView("guide")} />;
+  if (view === "sessions") return <SessionsOverview adminKey={adminKey} onBack={() => setView("lobby")} />;
+  if (view === "manage") return <ManageView adminKey={adminKey} roundsData={roundsData} roundOrder={roundOrder} onBack={() => setView("lobby")} onRoundsChanged={handleRoundsChanged} />;
   if (view === "guide") return <GuideView onBack={() => setView("lobby")} />;
-  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} hasScores={Object.keys(scores).length > 0} />;
+  if (view === "admin") return <AdminView adminKey={adminKey} onBack={() => setView("lobby")} />;
+  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} hasScores={Object.keys(scores).length > 0} hostPin={hostPin} />;
   if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode} />;
   return (
     <ScoringView
@@ -280,6 +389,7 @@ function App() {
       showAnswers={showAnswers} setShowAnswers={setShowAnswers}
       onLeaderboard={() => { setRevealed(false); setRevealCount(0); setView("leaderboard"); }}
       onSetup={() => setView("setup")}
+      onLeaveSession={handleLeaveSession}
       roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode}
       sessionStatus={sessionStatus} onToggleStatus={handleToggleSessionStatus}
       answers={answers}

@@ -59,12 +59,16 @@ function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-export default function ManageView({ roundsData, roundOrder, onBack, onRoundsChanged }) {
+export default function ManageView({ adminKey, roundsData, roundOrder, onBack, onRoundsChanged }) {
   const [selectedRoundId, setSelectedRoundId] = useState(null);
   const [editingQuestionIdx, setEditingQuestionIdx] = useState(null);
   const [draftRound, setDraftRound] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+  function authHeaders() {
+    return { "Content-Type": "application/json", "x-admin-key": adminKey };
+  }
 
   const orderedRounds = (roundOrder || []).map((id) => ({ id, ...(roundsData || {})[id] })).filter((r) => r.name);
 
@@ -149,9 +153,10 @@ export default function ManageView({ roundsData, roundOrder, onBack, onRoundsCha
         finalId = slugify(draftRound.name || "round");
         const res = await fetch("/api/rounds", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders(),
           body: JSON.stringify({ ...body, id: finalId }),
         });
+        if (res.status === 403) { alert("Admin key rejected"); return; }
         if (!res.ok) throw new Error("Create failed");
         const created = await res.json();
         newRoundsData[finalId] = created;
@@ -159,9 +164,10 @@ export default function ManageView({ roundsData, roundOrder, onBack, onRoundsCha
       } else {
         const res = await fetch(`/api/rounds/${finalId}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders(),
           body: JSON.stringify(body),
         });
+        if (res.status === 403) { alert("Admin key rejected"); return; }
         if (!res.ok) throw new Error("Save failed");
         const updated = await res.json();
         newRoundsData[finalId] = updated;
@@ -182,7 +188,8 @@ export default function ManageView({ roundsData, roundOrder, onBack, onRoundsCha
     if (!selectedRoundId || selectedRoundId === "__new__" || saving) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/rounds/${selectedRoundId}`, { method: "DELETE" });
+      const res = await fetch(`/api/rounds/${selectedRoundId}`, { method: "DELETE", headers: { "x-admin-key": adminKey } });
+      if (res.status === 403) { handleAuthError(); return; }
       if (!res.ok) throw new Error("Delete failed");
       const newRoundsData = deepClone(roundsData);
       delete newRoundsData[selectedRoundId];
@@ -206,9 +213,10 @@ export default function ManageView({ roundsData, roundOrder, onBack, onRoundsCha
     try {
       const res = await fetch("/api/rounds/reorder", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ order: newOrder }),
       });
+      if (res.status === 403) { handleAuthError(); return; }
       if (!res.ok) throw new Error("Reorder failed");
       onRoundsChanged(roundsData, newOrder);
     } catch (e) {
@@ -506,7 +514,6 @@ export default function ManageView({ roundsData, roundOrder, onBack, onRoundsCha
     </div>
   );
 
-  /* ---- main render ---- */
   return (
     <div>
       <div style={overlay} />

@@ -1,3 +1,5 @@
+import { useState, useCallback } from "react";
+
 const DEFAULT_TEAMS = Array.from({ length: 10 }, (_, i) => `Team ${i + 1}`);
 
 // The National Golf Brussels - exact brand colors
@@ -50,10 +52,41 @@ function LogoMark({ size = "md" }) {
   );
 }
 
-function SessionBadge({ code }) {
+function CopyButton({ text, size = 14 }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback((e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [text]);
   return (
-    <span style={{ display: "inline-block", padding: "3px 10px", background: C.greenMid, borderRadius: 3, fontSize: 11, fontWeight: 600, letterSpacing: 2, color: C.sage, fontFamily: "'Inter', sans-serif", border: `1px solid ${C.border}` }}>
+    <button onClick={handleCopy} title="Copy" style={{
+      background: "none", border: "none", cursor: "pointer", padding: 2,
+      color: copied ? C.correct : C.sage, transition: "color 0.2s", lineHeight: 1,
+      display: "inline-flex", alignItems: "center", verticalAlign: "middle",
+    }}>
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {copied ? (
+          <polyline points="20 6 9 17 4 12" />
+        ) : (
+          <>
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </>
+        )}
+      </svg>
+    </button>
+  );
+}
+
+function SessionBadge({ code }) {
+  const suffix = code && code.startsWith("GQ-") ? code.slice(3) : code;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", background: C.greenMid, borderRadius: 3, fontSize: 11, fontWeight: 600, letterSpacing: 2, color: C.sage, fontFamily: "'Inter', sans-serif", border: `1px solid ${C.border}` }}>
       {code}
+      <CopyButton text={suffix} size={12} />
     </span>
   );
 }
@@ -61,6 +94,8 @@ function SessionBadge({ code }) {
 const SESSION_KEY = "gq-session-code";
 const ROLE_KEY = "gq-role";
 const TEAM_IDX_KEY = "gq-team-idx";
+const HOST_PIN_KEY = "gq-host-pin";
+const TEAM_PIN_KEY = "gq-team-pin";
 
 // Shared styles
 const labelStyle = {
@@ -103,4 +138,4 @@ const tdStyle = {
   fontFamily: "'Inter', sans-serif",
 };
 
-export { DEFAULT_TEAMS, C, HERO_BG, LOGO_DATA_URI, LogoMark, SessionBadge, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, labelStyle, btnPrimary, btnAccent, btnGhost, thStyle, ansCell, tdStyle };
+export { DEFAULT_TEAMS, C, HERO_BG, LOGO_DATA_URI, LogoMark, CopyButton, SessionBadge, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, HOST_PIN_KEY, TEAM_PIN_KEY, labelStyle, btnPrimary, btnAccent, btnGhost, thStyle, ansCell, tdStyle };
