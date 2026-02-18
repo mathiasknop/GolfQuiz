@@ -2,13 +2,13 @@ import { useState } from "react";
 import { C, HERO_BG, LogoMark, btnPrimary, btnGhost } from "./styles.jsx";
 
 export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
-  const [joinCode, setJoinCode] = useState("");
+  const [joinCode, setJoinCode] = useState("GQ-");
   const [joinPin, setJoinPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [joinError, setJoinError] = useState(null);
 
   // Player join state
-  const [playerCode, setPlayerCode] = useState("");
+  const [playerCode, setPlayerCode] = useState("GQ-");
   const [playerTeams, setPlayerTeams] = useState(null);
   const [playerTeamIdx, setPlayerTeamIdx] = useState(null);
   const [playerError, setPlayerError] = useState(null);
@@ -17,7 +17,7 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
   const handleJoin = () => {
     const code = joinCode.trim().toUpperCase();
     const pin = joinPin.trim();
-    if (!code || !pin) return;
+    if (code.length <= 3 || !pin) return;
     setBusy(true);
     setJoinError(null);
     onJoinSession(code, pin).catch(() => {
@@ -28,7 +28,7 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
 
   const handleFindSession = () => {
     const code = playerCode.trim().toUpperCase();
-    if (!code) return;
+    if (code.length <= 3) return;
     setPlayerBusy(true);
     setPlayerError(null);
     setPlayerTeams(null);
@@ -72,7 +72,7 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input
                 value={joinCode} placeholder="e.g. GQ-7K3M"
-                onChange={e => { setJoinCode(e.target.value.toUpperCase()); setJoinError(null); }}
+                onChange={e => { const v = e.target.value.toUpperCase(); setJoinCode(v.startsWith("GQ-") ? v : "GQ-"); setJoinError(null); }}
                 onKeyDown={e => e.key === "Enter" && handleJoin()}
                 style={{ flex: 1, padding: "10px 14px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 15, background: C.greenDeep, color: C.cream, outline: "none", fontFamily: "'Inter', sans-serif", letterSpacing: 2, textAlign: "center" }}
                 onFocus={e => e.target.style.borderColor = C.greenSoft}
@@ -89,7 +89,7 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
                 onFocus={e => e.target.style.borderColor = C.greenSoft}
                 onBlur={e => e.target.style.borderColor = C.border}
               />
-              <button onClick={handleJoin} disabled={busy || !joinCode.trim() || !joinPin.trim()} style={{ ...btnPrimary, flex: 1, opacity: (busy || !joinCode.trim() || !joinPin.trim()) ? 0.6 : 1, padding: "10px 20px" }}>Join as Host</button>
+              <button onClick={handleJoin} disabled={busy || joinCode.trim().length <= 3 || !joinPin.trim()} style={{ ...btnPrimary, flex: 1, opacity: (busy || joinCode.trim().length <= 3 || !joinPin.trim()) ? 0.6 : 1, padding: "10px 20px" }}>Join as Host</button>
             </div>
             {joinError && <div style={{ marginTop: 10, fontSize: 12, color: C.wrong, fontFamily: "'Inter', sans-serif" }}>{joinError}</div>}
           </div>
@@ -102,13 +102,13 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 value={playerCode} placeholder="e.g. GQ-7K3M"
-                onChange={e => { setPlayerCode(e.target.value.toUpperCase()); setPlayerError(null); setPlayerTeams(null); setPlayerTeamIdx(null); }}
+                onChange={e => { const v = e.target.value.toUpperCase(); setPlayerCode(v.startsWith("GQ-") ? v : "GQ-"); setPlayerError(null); setPlayerTeams(null); setPlayerTeamIdx(null); }}
                 onKeyDown={e => e.key === "Enter" && handleFindSession()}
                 style={{ flex: 1, padding: "10px 14px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 15, background: C.greenDeep, color: C.cream, outline: "none", fontFamily: "'Inter', sans-serif", letterSpacing: 2, textAlign: "center" }}
                 onFocus={e => e.target.style.borderColor = C.greenSoft}
                 onBlur={e => e.target.style.borderColor = C.border}
               />
-              <button onClick={handleFindSession} disabled={playerBusy || !playerCode.trim()} style={{ ...btnPrimary, opacity: (playerBusy || !playerCode.trim()) ? 0.6 : 1, padding: "10px 20px" }}>
+              <button onClick={handleFindSession} disabled={playerBusy || playerCode.trim().length <= 3} style={{ ...btnPrimary, opacity: (playerBusy || playerCode.trim().length <= 3) ? 0.6 : 1, padding: "10px 20px" }}>
                 Find
               </button>
             </div>

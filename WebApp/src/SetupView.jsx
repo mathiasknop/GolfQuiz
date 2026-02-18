@@ -9,9 +9,12 @@ export default function SetupView({ teams, setTeams, teamCount, setTeamCount, on
           <LogoMark size="lg" />
           <div style={{ marginTop: 16 }}><SessionBadge code={sessionCode} /></div>
           {hostPin && (
-            <div style={{ marginTop: 10, fontFamily: "'Inter', sans-serif", fontSize: 12, color: C.sage }}>
-              Host PIN: <span style={{ color: C.cream, fontWeight: 700, letterSpacing: 3, fontSize: 16 }}>{hostPin}</span>
-              <div style={{ fontSize: 10, color: C.sageDark, marginTop: 2 }}>Save this PIN to rejoin as host</div>
+            <div style={{ marginTop: 12, fontFamily: "'Inter', sans-serif", textAlign: "center" }}>
+              <div style={{ fontSize: 11, color: C.sage, letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>Host PIN</div>
+              <div style={{ display: "inline-block", background: "rgba(255,255,255,0.10)", borderRadius: 6, padding: "8px 20px" }}>
+                <span style={{ color: C.cream, fontWeight: 800, letterSpacing: 6, fontSize: 24 }}>{hostPin}</span>
+              </div>
+              <div style={{ fontSize: 10, color: C.sageDark, marginTop: 6 }}>Save this PIN to rejoin as host</div>
             </div>
           )}
           <div style={{ marginTop: 12, fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: 5, textTransform: "uppercase", color: C.sage, fontWeight: 300 }}>
