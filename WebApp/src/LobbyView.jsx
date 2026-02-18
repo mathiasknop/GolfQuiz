@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { C, HERO_BG, LogoMark, btnPrimary, btnGhost } from "./styles.jsx";
 
-export default function LobbyView({ onNewSession, onJoinSession, onViewSessions, onJoinAsPlayer, onManageQuiz, onGuide, onAdmin }) {
+export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
   const [joinCode, setJoinCode] = useState("");
   const [joinPin, setJoinPin] = useState("");
   const [busy, setBusy] = useState(false);
@@ -13,11 +13,6 @@ export default function LobbyView({ onNewSession, onJoinSession, onViewSessions,
   const [playerTeamIdx, setPlayerTeamIdx] = useState(null);
   const [playerError, setPlayerError] = useState(null);
   const [playerBusy, setPlayerBusy] = useState(false);
-
-  const handleNew = () => {
-    setBusy(true);
-    onNewSession().catch(() => setBusy(false));
-  };
 
   const handleJoin = () => {
     const code = joinCode.trim().toUpperCase();
@@ -71,16 +66,6 @@ export default function LobbyView({ onNewSession, onJoinSession, onViewSessions,
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Host: New session */}
-          <div style={{ background: C.greenDark, borderRadius: 4, padding: "24px", border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
-            <div style={{ fontSize: 13, color: C.sage, marginBottom: 14, fontFamily: "'Inter', sans-serif" }}>Start fresh with a new session code</div>
-            <button onClick={handleNew} disabled={busy} style={{ ...btnPrimary, width: "100%", opacity: busy ? 0.6 : 1 }}>
-              {busy ? "Creating..." : "New Quiz Session"}
-            </button>
-          </div>
-
-          <div style={{ textAlign: "center", fontSize: 11, color: C.sageDark, fontFamily: "'Inter', sans-serif", letterSpacing: 2, textTransform: "uppercase" }}>or</div>
-
           {/* Host: Join existing */}
           <div style={{ background: C.greenDark, borderRadius: 4, padding: "24px", border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
             <div style={{ fontSize: 13, color: C.sage, marginBottom: 14, fontFamily: "'Inter', sans-serif" }}>Join an existing session as host</div>
@@ -153,11 +138,8 @@ export default function LobbyView({ onNewSession, onJoinSession, onViewSessions,
             )}
           </div>
 
-          <div style={{ textAlign: "center", marginTop: 8, display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-            <button onClick={onViewSessions} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>View All Sessions</button>
-            <button onClick={onManageQuiz} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>Manage Quiz</button>
+          <div style={{ textAlign: "center", marginTop: 8 }}>
             <button onClick={onGuide} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>Help &amp; Guide</button>
-            <button onClick={onAdmin} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>Admin</button>
           </div>
         </div>
       </div>

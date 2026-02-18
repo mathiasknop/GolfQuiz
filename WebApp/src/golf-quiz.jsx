@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { DEFAULT_TEAMS, C, LogoMark, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, HOST_PIN_KEY, PLAYER_TOKEN_KEY, btnPrimary } from "./styles.jsx";
 import LobbyView from "./LobbyView.jsx";
+import AdminLobbyView from "./AdminLobbyView.jsx";
 import SessionsOverview from "./SessionsOverview.jsx";
 import SetupView from "./SetupView.jsx";
 import ScoringView from "./ScoringView.jsx";
@@ -9,6 +10,8 @@ import PlayerView from "./PlayerView.jsx";
 import ManageView from "./ManageView.jsx";
 import GuideView from "./GuideView.jsx";
 import AdminView from "./AdminView.jsx";
+
+const isAdmin = window.location.pathname.startsWith("/admin");
 
 function App() {
   const [roundsData, setRoundsData] = useState(null);
@@ -298,7 +301,8 @@ function App() {
     );
   }
 
-  if (view === "lobby") return <LobbyView onNewSession={handleNewSession} onJoinSession={handleJoinSession} onViewSessions={() => setView("sessions")} onJoinAsPlayer={handleJoinAsPlayer} onManageQuiz={() => setView("manage")} onGuide={() => setView("guide")} onAdmin={() => setView("admin")} />;
+  if (view === "lobby" && isAdmin) return <AdminLobbyView onNewSession={handleNewSession} onViewSessions={() => setView("sessions")} onManageQuiz={() => setView("manage")} onAdmin={() => setView("admin")} onGuide={() => setView("guide")} />;
+  if (view === "lobby") return <LobbyView onJoinSession={handleJoinSession} onJoinAsPlayer={handleJoinAsPlayer} onGuide={() => setView("guide")} />;
   if (view === "sessions") return <SessionsOverview onBack={() => setView("lobby")} />;
   if (view === "manage") return <ManageView roundsData={roundsData} roundOrder={roundOrder} onBack={() => setView("lobby")} onRoundsChanged={handleRoundsChanged} />;
   if (view === "guide") return <GuideView onBack={() => setView("lobby")} />;
