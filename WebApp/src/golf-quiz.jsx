@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import GuideView from "./GuideView.jsx";
 
 const DEFAULT_TEAMS = Array.from({ length: 10 }, (_, i) => `Team ${i + 1}`);
 
@@ -137,7 +138,7 @@ function App() {
 
   // Poll for remote changes every 3s (real-time sync across devices)
   useEffect(() => {
-    if (!initialized.current || !sessionCode || view === "lobby" || view === "sessions") return;
+    if (!initialized.current || !sessionCode || view === "lobby" || view === "sessions" || view === "guide") return;
     const poll = setInterval(() => {
       // Skip if a local save is pending — our own changes haven't been written yet
       if (saveTimer.current) return;
@@ -255,8 +256,9 @@ function App() {
     </div>
   );
 
-  if (view === "lobby") return <LobbyView onNewSession={handleNewSession} onJoinSession={handleJoinSession} onViewSessions={() => setView("sessions")} />;
+  if (view === "lobby") return <LobbyView onNewSession={handleNewSession} onJoinSession={handleJoinSession} onViewSessions={() => setView("sessions")} onGuide={() => setView("guide")} />;
   if (view === "sessions") return <SessionsOverview onBack={() => setView("lobby")} onJoinSession={handleJoinSession} />;
+  if (view === "guide") return <GuideView C={C} HERO_BG={HERO_BG} LogoMark={LogoMark} btnGhost={btnGhost} onBack={() => setView("lobby")} />;
   if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} hasScores={Object.keys(scores).length > 0} />;
   if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode} />;
   return (
@@ -272,7 +274,7 @@ function App() {
   );
 }
 
-function LobbyView({ onNewSession, onJoinSession, onViewSessions }) {
+function LobbyView({ onNewSession, onJoinSession, onViewSessions, onGuide }) {
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [joinError, setJoinError] = useState(null);
@@ -330,8 +332,9 @@ function LobbyView({ onNewSession, onJoinSession, onViewSessions }) {
             {joinError && <div style={{ marginTop: 10, fontSize: 12, color: C.wrong, fontFamily: "'Inter', sans-serif" }}>{joinError}</div>}
           </div>
 
-          <div style={{ textAlign: "center", marginTop: 8 }}>
+          <div style={{ textAlign: "center", marginTop: 8, display: "flex", justifyContent: "center", gap: 10 }}>
             <button onClick={onViewSessions} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>View All Sessions</button>
+            <button onClick={onGuide} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>Help &amp; Guide</button>
           </div>
         </div>
       </div>
