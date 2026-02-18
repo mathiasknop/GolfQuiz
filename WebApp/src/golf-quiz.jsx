@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { DEFAULT_TEAMS, C, LogoMark, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, HOST_PIN_KEY, PLAYER_TOKEN_KEY, btnPrimary } from "./styles.jsx";
+import { DEFAULT_TEAMS, C, HERO_BG, LogoMark, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, HOST_PIN_KEY, PLAYER_TOKEN_KEY, btnPrimary, btnGhost } from "./styles.jsx";
 import LobbyView from "./LobbyView.jsx";
 import AdminLobbyView from "./AdminLobbyView.jsx";
 import SessionsOverview from "./SessionsOverview.jsx";
@@ -35,6 +35,12 @@ function App() {
   const [playerTeamIdx, setPlayerTeamIdx] = useState(null);
   const [answers, setAnswers] = useState({});
   const [hostPin, setHostPin] = useState(() => localStorage.getItem(HOST_PIN_KEY));
+
+  // Admin key state (gates all /admin views)
+  const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem("gq-admin-key") || "");
+  const [adminUnlockInput, setAdminUnlockInput] = useState("");
+  const [adminUnlockError, setAdminUnlockError] = useState(null);
+  const [adminUnlockBusy, setAdminUnlockBusy] = useState(false);
 
   const initialized = useRef(false);
   const saveTimer = useRef(null);
@@ -301,12 +307,61 @@ function App() {
     );
   }
 
+  // Admin key gate — all /admin views require unlocking first
+  if (isAdmin && !adminKey) {
+    const handleAdminUnlock = () => {
+      const key = adminUnlockInput.trim();
+      if (!key) return;
+      setAdminUnlockBusy(true);
+      setAdminUnlockError(null);
+      fetch("/api/sessions", { headers: { "x-admin-key": key } })
+        .then(r => {
+          if (r.status === 403) throw new Error("Invalid admin key");
+          if (!r.ok) throw new Error("Failed to verify");
+          return r.json();
+        })
+        .then(() => {
+          sessionStorage.setItem("gq-admin-key", key);
+          setAdminKey(key);
+          setAdminUnlockBusy(false);
+        })
+        .catch(err => { setAdminUnlockError(err.message); setAdminUnlockBusy(false); });
+    };
+    const inputStyle = { width: "100%", padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${C.sage}44`, background: "rgba(255,255,255,0.08)", color: C.cream, fontFamily: "'Inter',sans-serif", fontSize: 14, outline: "none", boxSizing: "border-box" };
+    return (
+      <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, fontFamily: "'Inter', sans-serif" }}>
+        <div style={{ position: "fixed", inset: 0, background: C.overlay, zIndex: 0 }} />
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 20 }}>
+          <div style={{ maxWidth: 380, width: "100%", textAlign: "center" }}>
+            <LogoMark size="lg" />
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: C.cream, marginTop: 24, marginBottom: 8, letterSpacing: 3, textTransform: "uppercase" }}>Admin</h2>
+            <p style={{ fontSize: 13, color: C.sage, marginBottom: 24 }}>Enter the admin key to continue.</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={adminUnlockInput}
+                onChange={e => { setAdminUnlockInput(e.target.value); setAdminUnlockError(null); }}
+                onKeyDown={e => e.key === "Enter" && handleAdminUnlock()}
+                type="password" placeholder="Admin key"
+                style={{ ...inputStyle, flex: 1, textAlign: "center" }}
+              />
+              <button onClick={handleAdminUnlock} disabled={adminUnlockBusy || !adminUnlockInput.trim()} style={{ ...btnPrimary, padding: "10px 20px", opacity: (adminUnlockBusy || !adminUnlockInput.trim()) ? 0.6 : 1 }}>
+                {adminUnlockBusy ? "..." : "Unlock"}
+              </button>
+            </div>
+            {adminUnlockError && <div style={{ marginTop: 10, fontSize: 12, color: C.wrong }}>{adminUnlockError}</div>}
+            <button onClick={() => window.location.href = "/"} style={{ ...btnGhost, marginTop: 20, fontSize: 14 }}>{"\u2190"} Back to Quiz</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (view === "lobby" && isAdmin) return <AdminLobbyView onNewSession={handleNewSession} onViewSessions={() => setView("sessions")} onManageQuiz={() => setView("manage")} onAdmin={() => setView("admin")} onGuide={() => setView("guide")} />;
   if (view === "lobby") return <LobbyView onJoinSession={handleJoinSession} onJoinAsPlayer={handleJoinAsPlayer} onGuide={() => setView("guide")} />;
-  if (view === "sessions") return <SessionsOverview onBack={() => setView("lobby")} />;
-  if (view === "manage") return <ManageView roundsData={roundsData} roundOrder={roundOrder} onBack={() => setView("lobby")} onRoundsChanged={handleRoundsChanged} />;
+  if (view === "sessions") return <SessionsOverview adminKey={adminKey} onBack={() => setView("lobby")} />;
+  if (view === "manage") return <ManageView adminKey={adminKey} roundsData={roundsData} roundOrder={roundOrder} onBack={() => setView("lobby")} onRoundsChanged={handleRoundsChanged} />;
   if (view === "guide") return <GuideView onBack={() => setView("lobby")} />;
-  if (view === "admin") return <AdminView onBack={() => setView("lobby")} />;
+  if (view === "admin") return <AdminView adminKey={adminKey} onBack={() => setView("lobby")} />;
   if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} hasScores={Object.keys(scores).length > 0} hostPin={hostPin} />;
   if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode} />;
   return (

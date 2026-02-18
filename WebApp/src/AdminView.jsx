@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { C, HERO_BG, LogoMark, btnPrimary, btnGhost } from "./styles.jsx";
+import { C, HERO_BG, LogoMark, btnGhost } from "./styles.jsx";
 
 const overlay = {
   position: "fixed", inset: 0, zIndex: 0,
@@ -15,55 +15,19 @@ const scrollWrap = {
   padding: "0 12px 48px",
   fontFamily: "'Inter',sans-serif", color: C.cream,
 };
-const inputStyle = {
-  width: "100%", padding: "9px 12px", borderRadius: 8,
-  border: `1.5px solid ${C.sage}44`, background: "rgba(255,255,255,0.08)",
-  color: C.cream, fontFamily: "'Inter',sans-serif", fontSize: 14,
-  outline: "none", boxSizing: "border-box",
-};
 const card = {
   background: "rgba(255,255,255,0.07)",
   borderRadius: 14, padding: "14px 18px", marginBottom: 10,
   border: "1.5px solid transparent",
 };
 
-export default function AdminView({ onBack }) {
-  const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem("gq-admin-key") || "");
-  const [unlocked, setUnlocked] = useState(() => !!sessionStorage.getItem("gq-admin-key"));
-  const [unlockInput, setUnlockInput] = useState("");
-  const [unlockError, setUnlockError] = useState(null);
-  const [unlockBusy, setUnlockBusy] = useState(false);
-
+export default function AdminView({ adminKey, onBack }) {
   const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [sessionDetails, setSessionDetails] = useState({});
   const [actionBusy, setActionBusy] = useState({});
-
-  function handleUnlock() {
-    const key = unlockInput.trim();
-    if (!key) return;
-    setUnlockBusy(true);
-    setUnlockError(null);
-    fetch("/api/sessions", { headers: { "x-admin-key": key } })
-      .then(r => {
-        if (r.status === 403) throw new Error("Invalid admin key");
-        if (!r.ok) throw new Error("Failed to verify");
-        return r.json();
-      })
-      .then(d => {
-        sessionStorage.setItem("gq-admin-key", key);
-        setAdminKey(key);
-        setUnlocked(true);
-        setSessions(d.sessions || []);
-        setUnlockBusy(false);
-      })
-      .catch(err => {
-        setUnlockError(err.message);
-        setUnlockBusy(false);
-      });
-  }
 
   const loadSessions = useCallback(() => {
     if (!adminKey) return;
@@ -78,9 +42,7 @@ export default function AdminView({ onBack }) {
       .catch(err => { setError(err.message); setLoading(false); });
   }, [adminKey]);
 
-  useEffect(() => {
-    if (unlocked) loadSessions();
-  }, [unlocked, loadSessions]);
+  useEffect(() => { loadSessions(); }, [loadSessions]);
 
   function loadSessionDetail(code) {
     fetch(`/api/session/${code}/admin`, { headers: { "x-admin-key": adminKey } })
@@ -148,39 +110,6 @@ export default function AdminView({ onBack }) {
     return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Unlock screen
-  if (!unlocked) {
-    return (
-      <div>
-        <div style={overlay} />
-        <div style={darkOverlay} />
-        <div style={{ ...scrollWrap, justifyContent: "center", minHeight: "100vh" }}>
-          <div style={{ maxWidth: 380, width: "100%", textAlign: "center" }}>
-            <LogoMark size="lg" />
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: C.cream, marginTop: 24, marginBottom: 8, letterSpacing: 3, textTransform: "uppercase" }}>Admin Panel</h2>
-            <p style={{ fontSize: 13, color: C.sage, marginBottom: 24 }}>Enter the admin key to access the admin panel.</p>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                value={unlockInput}
-                onChange={e => { setUnlockInput(e.target.value); setUnlockError(null); }}
-                onKeyDown={e => e.key === "Enter" && handleUnlock()}
-                type="password"
-                placeholder="Admin key"
-                style={{ ...inputStyle, flex: 1, textAlign: "center" }}
-              />
-              <button onClick={handleUnlock} disabled={unlockBusy || !unlockInput.trim()} style={{ ...btnPrimary, padding: "10px 20px", opacity: (unlockBusy || !unlockInput.trim()) ? 0.6 : 1 }}>
-                {unlockBusy ? "..." : "Unlock"}
-              </button>
-            </div>
-            {unlockError && <div style={{ marginTop: 10, fontSize: 12, color: C.wrong }}>{unlockError}</div>}
-            <button onClick={onBack} style={{ ...btnGhost, marginTop: 20, fontSize: 14 }}>{"\u2190"} Back</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Main admin panel
   return (
     <div>
       <div style={overlay} />
