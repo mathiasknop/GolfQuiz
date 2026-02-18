@@ -28,18 +28,17 @@ export default function GuideView({ onBack }) {
       key: "start", title: "Getting Started",
       body: (
         <>
-          <p>Open the app in any browser. The <span style={strong}>Lobby</span> gives you three options:</p>
+          <p>Open the app in any browser. The <span style={strong}>Lobby</span> gives you two options:</p>
           <div style={tableWrap}>
             <table style={table}>
               <thead><tr><th style={th}>Action</th><th style={th}>Who it's for</th></tr></thead>
               <tbody>
-                <tr><td style={td}><span style={strong}>New Quiz Session</span></td><td style={td}>Host starting a fresh quiz night</td></tr>
-                <tr><td style={td}><span style={strong}>Join Existing Session</span></td><td style={td}>Host resuming a previous session</td></tr>
-                <tr><td style={td}><span style={strong}>Join as a Player</span></td><td style={td}>Team members answering on their phone</td></tr>
+                <tr><td style={td}><span style={strong}>Join as Host</span></td><td style={td}>Quiz master — enter session code + Host PIN</td></tr>
+                <tr><td style={td}><span style={strong}>Join as Player</span></td><td style={td}>Team members — enter session code, pick team, enter Team PIN</td></tr>
               </tbody>
             </table>
           </div>
-          <p>At the bottom of the lobby you'll also find links to <span style={strong}>View All Sessions</span>, <span style={strong}>Manage Quiz</span>, and this guide.</p>
+          <p>The <span style={strong}>admin panel</span> (accessible at <code style={{ background: C.greenMid, padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>/admin</code>) is where you create new sessions, view all sessions, manage quiz rounds, and reset PINs.</p>
         </>
       ),
     },
@@ -48,13 +47,16 @@ export default function GuideView({ onBack }) {
       body: (
         <>
           <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 4 }}>1. Create a Session</p>
-          <p>Tap <span style={strong}>New Quiz Session</span>. The app generates a unique session code (e.g. <code style={{ background: C.greenMid, padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>GQ-K7MP</code>). Share this code with all participants.</p>
+          <p>Go to <code style={{ background: C.greenMid, padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>/admin</code> and tap <span style={strong}>New Quiz Session</span>. The app generates a unique session code (e.g. <code style={{ background: C.greenMid, padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>GQ-K7MP</code>) and a 4-digit <span style={strong}>Host PIN</span>. Save both — you need the Host PIN to rejoin as host.</p>
 
           <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>2. Set Up Teams</p>
-          <p>On the <span style={strong}>Setup</span> screen, use the slider to set the number of teams (2-20) and edit each team name. Tap <span style={strong}>Start Scoring</span> when ready. All changes are saved automatically.</p>
+          <p>On the <span style={strong}>Setup</span> screen, use the slider to set the number of teams (2-20) and edit each team name. All changes are saved automatically.</p>
 
-          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>3. Score the Quiz</p>
-          <p>The <span style={strong}>Scoring</span> screen shows round tabs across the top. For each question, tap <span style={{ color: C.correct }}>&#10003;</span> (correct) or <span style={{ color: C.wrong }}>&#10007;</span> (wrong). Tap again to undo.</p>
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>3. Print QR Codes</p>
+          <p>Tap <span style={strong}>Print QR Codes</span> on the Setup screen to generate a printable sheet of QR codes — one per team. Place these on each table so players can scan and join instantly. Each QR code contains the session code, team assignment, and Team PIN.</p>
+
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>4. Score the Quiz</p>
+          <p>Tap <span style={strong}>Start Scoring</span>. The <span style={strong}>Scoring</span> screen shows round tabs across the top. For each question, tap <span style={{ color: C.correct }}>&#10003;</span> (correct) or <span style={{ color: C.wrong }}>&#10007;</span> (wrong). Tap again to undo.</p>
           <div style={tableWrap}>
             <table style={table}>
               <thead><tr><th style={th}>Button</th><th style={th}>What it does</th></tr></thead>
@@ -67,11 +69,11 @@ export default function GuideView({ onBack }) {
             </table>
           </div>
 
-          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>4. Reveal the Leaderboard</p>
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>5. Reveal the Leaderboard</p>
           <p>Tap <span style={strong}>Reveal #N</span> to show teams one at a time from last place to first, or tap <span style={strong}>Show All</span> to reveal everyone at once. Top 3 teams get gold, silver and bronze medals.</p>
 
-          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>5. Resume a Session</p>
-          <p>If you close the browser, return to the lobby and enter your session code under <span style={strong}>Join Existing Session</span>. The app picks up exactly where you left off. You can also use <span style={strong}>View All Sessions</span> to see and rejoin any session.</p>
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>6. Resume a Session</p>
+          <p>If you close the browser, return to the lobby and enter your session code and <span style={strong}>Host PIN</span> to rejoin. The app picks up exactly where you left off.</p>
         </>
       ),
     },
@@ -80,7 +82,17 @@ export default function GuideView({ onBack }) {
       body: (
         <>
           <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 4 }}>1. Join a Session</p>
-          <p>On the lobby, enter the session code under <span style={strong}>Join as a Player</span> and tap <span style={strong}>Find</span>. Then tap your team name and tap <span style={strong}>Join as Player</span>.</p>
+          <p>There are two ways to join:</p>
+          <div style={tableWrap}>
+            <table style={table}>
+              <thead><tr><th style={th}>Method</th><th style={th}>How</th></tr></thead>
+              <tbody>
+                <tr><td style={td}><span style={strong}>Scan QR code</span></td><td style={td}>Scan the QR code on your table — it joins you automatically</td></tr>
+                <tr><td style={td}><span style={strong}>Manual entry</span></td><td style={td}>Enter the session code, tap <span style={strong}>Find</span>, select your team, then enter your 4-digit Team PIN</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Multiple players on the same team can join at the same time — everyone sees each other's answers in real time.</p>
 
           <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>2. Answer Questions</p>
           <p>The host's active round is selected automatically. Depending on the question type:</p>
@@ -136,6 +148,8 @@ export default function GuideView({ onBack }) {
               <thead><tr><th style={th}>Topic</th><th style={th}>Detail</th></tr></thead>
               <tbody>
                 <tr><td style={td}><span style={strong}>Session code</span></td><td style={td}><code style={{ background: C.greenMid, padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>GQ-XXXX</code> (4 characters)</td></tr>
+                <tr><td style={td}><span style={strong}>Host PIN</span></td><td style={td}>4-digit code to rejoin as host</td></tr>
+                <tr><td style={td}><span style={strong}>Team PINs</span></td><td style={td}>4-digit code per team — printed on QR cards or entered manually</td></tr>
                 <tr><td style={td}><span style={strong}>Max teams</span></td><td style={td}>20</td></tr>
                 <tr><td style={td}><span style={strong}>Sync</span></td><td style={td}>Automatic every 3 seconds across all devices</td></tr>
                 <tr><td style={td}><span style={strong}>Browser support</span></td><td style={td}>Any modern browser (Chrome, Safari, Firefox, Edge)</td></tr>
@@ -151,9 +165,10 @@ export default function GuideView({ onBack }) {
       body: (
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li style={{ marginBottom: 8 }}><span style={strong}>Projector setup:</span> Open the app on a laptop connected to the projector. Use the Scoring view during rounds and switch to the Leaderboard for the reveal.</li>
-          <li style={{ marginBottom: 8 }}><span style={strong}>Player devices:</span> Players only need their phone — the interface is mobile-optimised.</li>
+          <li style={{ marginBottom: 8 }}><span style={strong}>Print QR codes beforehand:</span> Print the QR code sheet from the Setup screen and place one card on each team table before the quiz starts.</li>
+          <li style={{ marginBottom: 8 }}><span style={strong}>Player devices:</span> Players only need their phone — scan the QR code or enter the code and PIN manually. The interface is mobile-optimised.</li>
           <li style={{ marginBottom: 8 }}><span style={strong}>Mid-quiz break:</span> Close the session to lock answers, reopen when you resume.</li>
-          <li style={{ marginBottom: 8 }}><span style={strong}>Multiple hosts:</span> Any device that joins with the session code can score — but avoid two hosts scoring at the same time.</li>
+          <li style={{ marginBottom: 8 }}><span style={strong}>Multiple hosts:</span> Any device with the Host PIN can rejoin as host — but avoid two hosts scoring at the same time.</li>
         </ul>
       ),
     },
