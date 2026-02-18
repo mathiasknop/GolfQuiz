@@ -47,6 +47,7 @@ app.http("session-create", {
         activeRound: null,
         view: "setup",
         showAnswers: true,
+        answers: {},
         status: "open",
         updatedAt: new Date().toISOString(),
       };
@@ -152,9 +153,11 @@ app.http("session-save", {
       const body = await request.json();
       // Read existing doc to preserve status field
       let existingStatus = "open";
+      let existingAnswers = {};
       try {
         const { resource } = await sessions.item(code, code).read();
         if (resource?.status) existingStatus = resource.status;
+        if (resource?.answers) existingAnswers = resource.answers;
       } catch (_) { /* new session, use default */ }
       const doc = {
         id: code,
@@ -164,6 +167,7 @@ app.http("session-save", {
         activeRound: body.activeRound,
         view: body.view,
         showAnswers: body.showAnswers,
+        answers: existingAnswers,
         status: existingStatus,
         updatedAt: new Date().toISOString(),
       };
@@ -172,6 +176,71 @@ app.http("session-save", {
     } catch (err) {
       context.error("Failed to save session:", err.message);
       return { status: 500, jsonBody: { error: "Failed to save session" } };
+    }
+  },
+});
+
+// PATCH /api/session/{code}/answer — atomic per-question answer submission
+app.http("session-answer", {
+  methods: ["PATCH"],
+  authLevel: "anonymous",
+  route: "session/{code}/answer",
+  handler: async (request, context) => {
+    const code = request.params.code.toUpperCase();
+    try {
+      const body = await request.json();
+      const { teamIdx, questionId, answer } = body;
+
+      // Validate inputs
+      if (typeof teamIdx !== "number" || teamIdx < 0) {
+        return { status: 400, jsonBody: { error: "teamIdx must be a non-negative number" } };
+      }
+      if (!questionId || typeof questionId !== "string") {
+        return { status: 400, jsonBody: { error: "questionId is required and must be a string" } };
+      }
+      if (answer === undefined || answer === null || typeof answer !== "string") {
+        return { status: 400, jsonBody: { error: "answer is required and must be a string" } };
+      }
+
+      // Trim and limit answer length
+      const sanitizedAnswer = answer.trim().slice(0, 500);
+
+      // Read session to verify it exists and is open
+      const { resource } = await sessions.item(code, code).read();
+      if (!resource) {
+        return { status: 404, jsonBody: { error: "Session not found" } };
+      }
+      if (resource.status !== "open") {
+        return { status: 403, jsonBody: { error: "Session is closed" } };
+      }
+
+      const patchKey = `${teamIdx}-${questionId}`;
+
+      // Try atomic Cosmos DB patch (set operation)
+      try {
+        await sessions.item(code, code).patch([
+          { op: "set", path: `/answers/${patchKey}`, value: sanitizedAnswer },
+        ]);
+      } catch (patchErr) {
+        // Fallback for old sessions that don't have an 'answers' field:
+        // read-modify-write approach
+        context.warn("Patch failed, falling back to read-modify-write:", patchErr.message);
+        const { resource: current } = await sessions.item(code, code).read();
+        if (!current) {
+          return { status: 404, jsonBody: { error: "Session not found" } };
+        }
+        if (!current.answers) current.answers = {};
+        current.answers[patchKey] = sanitizedAnswer;
+        await sessions.items.upsert(current);
+      }
+
+      return { jsonBody: { ok: true } };
+    } catch (err) {
+      if (err.code === 404) {
+        return { status: 404, jsonBody: { error: "Session not found" } };
+      }
+      context.error("Failed to save answer:", err.message);
+      return { status: 500, jsonBody: { error: "Failed to save answer" } };
     }
   },
 });
