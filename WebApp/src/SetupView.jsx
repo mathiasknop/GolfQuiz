@@ -1,4 +1,4 @@
-import { C, HERO_BG, LogoMark, SessionBadge, labelStyle, btnPrimary, btnGhost } from "./styles.jsx";
+import { C, HERO_BG, LogoMark, CopyButton, SessionBadge, labelStyle, btnPrimary, btnGhost } from "./styles.jsx";
 
 export default function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode, readOnly, hasScores, hostPin }) {
   return (
@@ -11,8 +11,9 @@ export default function SetupView({ teams, setTeams, teamCount, setTeamCount, on
           {hostPin && (
             <div style={{ marginTop: 12, fontFamily: "'Inter', sans-serif", textAlign: "center" }}>
               <div style={{ fontSize: 11, color: C.sage, letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>Host PIN</div>
-              <div style={{ display: "inline-block", background: "rgba(255,255,255,0.10)", borderRadius: 6, padding: "8px 20px" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.10)", borderRadius: 6, padding: "8px 20px" }}>
                 <span style={{ color: C.cream, fontWeight: 800, letterSpacing: 6, fontSize: 24 }}>{hostPin}</span>
+                <CopyButton text={hostPin} size={18} />
               </div>
               <div style={{ fontSize: 10, color: C.sageDark, marginTop: 6 }}>Save this PIN to rejoin as host</div>
             </div>
