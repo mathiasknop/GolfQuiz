@@ -57,7 +57,7 @@ export default function SetupView({ teams, setTeams, teamCount, setTeamCount, on
           </div>
 
           <button onClick={onStart} style={{ ...btnPrimary, width: "100%" }}>{readOnly ? "View Scores" : hasScores ? "Back to Scoring" : "Start Scoring"}</button>
-          <button onClick={onLeaveSession} style={{ ...btnGhost, width: "100%", marginTop: 10, fontSize: 12 }}>New Quiz Session</button>
+          <button onClick={onLeaveSession} style={{ ...btnGhost, width: "100%", marginTop: 10, fontSize: 12 }}>Leave Session</button>
         </div>
       </div>
     </div>
