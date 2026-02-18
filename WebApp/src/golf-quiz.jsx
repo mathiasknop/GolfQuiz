@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { DEFAULT_TEAMS, C, HERO_BG, LogoMark, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, HOST_PIN_KEY, PLAYER_TOKEN_KEY, btnPrimary, btnGhost } from "./styles.jsx";
+import { DEFAULT_TEAMS, C, HERO_BG, LogoMark, SESSION_KEY, ROLE_KEY, TEAM_IDX_KEY, HOST_PIN_KEY, TEAM_PIN_KEY, btnPrimary, btnGhost } from "./styles.jsx";
 import LobbyView from "./LobbyView.jsx";
 import AdminLobbyView from "./AdminLobbyView.jsx";
 import SessionsOverview from "./SessionsOverview.jsx";
@@ -63,9 +63,13 @@ function App() {
     if (savedTeamIdx !== null) setPlayerTeamIdx(parseInt(savedTeamIdx));
   }, []);
 
-  // Load quiz data + try to resume session from localStorage
+  // Load quiz data + try to resume session from localStorage (or auto-join via QR URL params)
   useEffect(() => {
     const savedCode = localStorage.getItem(SESSION_KEY);
+    const urlParams = new URLSearchParams(window.location.search);
+    const qrSession = urlParams.get("s");
+    const qrTeam = urlParams.get("t");
+    const qrPin = urlParams.get("p");
 
     const quizPromise = fetch("/api/quiz-data").then(r => {
       if (!r.ok) throw new Error(`Failed to load quiz data (${r.status})`);
@@ -80,6 +84,22 @@ function App() {
       .then(([quizData, session]) => {
         setRoundsData(quizData.rounds);
         setRoundOrder(quizData.roundOrder);
+
+        // QR code auto-join takes priority
+        if (qrSession && qrTeam !== null && qrPin) {
+          window.history.replaceState({}, "", window.location.pathname);
+          const teamIdx = parseInt(qrTeam);
+          if (!isNaN(teamIdx)) {
+            setActiveRound(quizData.roundOrder[0]);
+            setLoading(false);
+            initialized.current = true;
+            handleJoinAsPlayer(qrSession, teamIdx, qrPin).catch(() => {
+              setView("lobby");
+            });
+            return;
+          }
+        }
+
         if (session) {
           restoreSession(session, quizData.roundOrder);
         } else {
@@ -96,7 +116,7 @@ function App() {
         setError(err.message);
         setLoading(false);
       });
-  }, [restoreSession]);
+  }, [restoreSession]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-save session to Cosmos DB (debounced 500ms) — host only
   useEffect(() => {
@@ -171,19 +191,17 @@ function App() {
       });
   }, [roundOrder, restoreSession]);
 
-  const handleJoinAsPlayer = useCallback((code, teamIdx) => {
-    // First join the session to get a player token
+  const handleJoinAsPlayer = useCallback((code, teamIdx, teamPin) => {
+    // Validate team PIN with the server
     return fetch(`/api/session/${code}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ teamIdx }),
+      body: JSON.stringify({ teamIdx, teamPin }),
     })
       .then(r => { if (!r.ok) throw new Error("Failed to join session"); return r.json(); })
-      .then(d => {
-        // Store player token for authenticated answer submission
-        if (d.playerToken) {
-          localStorage.setItem(PLAYER_TOKEN_KEY, d.playerToken);
-        }
+      .then(() => {
+        // Store team PIN for authenticated answer submission
+        localStorage.setItem(TEAM_PIN_KEY, teamPin);
         // Now load session data
         return fetch(`/api/session/${code}`)
           .then(r => { if (!r.ok) throw new Error("Session not found"); return r.json(); });
@@ -204,7 +222,7 @@ function App() {
     localStorage.removeItem(ROLE_KEY);
     localStorage.removeItem(TEAM_IDX_KEY);
     localStorage.removeItem(HOST_PIN_KEY);
-    localStorage.removeItem(PLAYER_TOKEN_KEY);
+    localStorage.removeItem(TEAM_PIN_KEY);
     setSessionCode(null);
     setView("lobby");
     setTeams([...DEFAULT_TEAMS]);

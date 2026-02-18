@@ -83,21 +83,21 @@ export default function AdminView({ adminKey, onBack }) {
       .finally(() => setActionBusy(prev => ({ ...prev, [`pin-${code}`]: false })));
   }
 
-  function resetToken(code, teamIdx) {
-    const key = `token-${code}-${teamIdx}`;
+  function resetTeamPin(code, teamIdx) {
+    const key = `tpin-${code}-${teamIdx}`;
     setActionBusy(prev => ({ ...prev, [key]: true }));
     fetch(`/api/session/${code}/admin`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
-      body: JSON.stringify({ action: "reset-token", teamIdx }),
+      body: JSON.stringify({ action: "reset-team-pin", teamIdx }),
     })
       .then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); })
       .then(d => {
         setSessionDetails(prev => {
           if (!prev[code]) return prev;
-          const tokens = { ...(prev[code].playerTokens || {}) };
-          tokens[teamIdx] = d.playerToken;
-          return { ...prev, [code]: { ...prev[code], playerTokens: tokens } };
+          const pins = { ...(prev[code].teamPins || {}) };
+          pins[String(teamIdx)] = d.teamPin;
+          return { ...prev, [code]: { ...prev[code], teamPins: pins } };
         });
       })
       .catch(() => {})
@@ -172,24 +172,25 @@ export default function AdminView({ adminKey, onBack }) {
                           </div>
                         </div>
 
-                        {/* Player Tokens */}
+                        {/* Team PINs */}
                         <div>
-                          <div style={{ fontSize: 11, color: C.sage, textTransform: "uppercase", letterSpacing: 2, marginBottom: 8, fontWeight: 700 }}>Player Tokens</div>
-                          {Object.keys(detail.playerTokens || {}).length === 0 ? (
-                            <div style={{ fontSize: 12, color: C.sage, opacity: 0.6 }}>No players have joined yet.</div>
+                          <div style={{ fontSize: 11, color: C.sage, textTransform: "uppercase", letterSpacing: 2, marginBottom: 8, fontWeight: 700 }}>Team PINs</div>
+                          {Object.keys(detail.teamPins || {}).length === 0 ? (
+                            <div style={{ fontSize: 12, color: C.sage, opacity: 0.6 }}>No team PINs generated.</div>
                           ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                              {Object.entries(detail.playerTokens).map(([idx, token]) => {
+                              {Object.entries(detail.teamPins || {}).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([idx, pin]) => {
                                 const teamName = (detail.teams || [])[parseInt(idx)] || `Team ${parseInt(idx) + 1}`;
-                                const busyKey = `token-${s.id}-${idx}`;
+                                const busyKey = `tpin-${s.id}-${idx}`;
                                 return (
                                   <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "rgba(255,255,255,0.04)", borderRadius: 6 }}>
                                     <span style={{ fontSize: 12, fontWeight: 600, minWidth: 80 }}>{teamName}</span>
-                                    <span style={{ fontSize: 11, color: C.sage, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "monospace" }}>
-                                      {token.slice(0, 8)}...{token.slice(-4)}
+                                    <span style={{ fontSize: 14, color: C.cream, fontWeight: 700, letterSpacing: 3, fontFamily: "monospace" }}>
+                                      {pin}
                                     </span>
+                                    <div style={{ flex: 1 }} />
                                     <button
-                                      onClick={() => resetToken(s.id, parseInt(idx))}
+                                      onClick={() => resetTeamPin(s.id, parseInt(idx))}
                                       disabled={actionBusy[busyKey]}
                                       style={{ ...btnGhost, fontSize: 10, padding: "3px 8px", opacity: actionBusy[busyKey] ? 0.5 : 1 }}
                                     >

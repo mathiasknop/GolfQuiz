@@ -1,6 +1,5 @@
 import { app } from "@azure/functions";
 import { CosmosClient } from "@azure/cosmos";
-import crypto from "crypto";
 
 const client = new CosmosClient({
   endpoint: process.env.COSMOS_ENDPOINT,
@@ -23,12 +22,14 @@ function generatePin() {
   return String(Math.floor(Math.random() * 10000)).padStart(4, "0");
 }
 
-function generateToken() {
-  return crypto.randomUUID();
+function generateTeamPins(count) {
+  const pins = {};
+  for (let i = 0; i < count; i++) pins[String(i)] = generatePin();
+  return pins;
 }
 
 function sanitizeSession(resource) {
-  const { _rid, _self, _etag, _attachments, _ts, hostPin, playerTokens, ...session } = resource;
+  const { _rid, _self, _etag, _attachments, _ts, hostPin, playerTokens, teamPins, ...session } = resource;
   return session;
 }
 
@@ -65,7 +66,7 @@ app.http("session-create", {
       const doc = {
         id: code,
         hostPin,
-        playerTokens: {},
+        teamPins: generateTeamPins(10),
         teams: Array.from({ length: 10 }, (_, i) => `Team ${i + 1}`),
         teamCount: 10,
         scores: {},
@@ -198,10 +199,17 @@ app.http("session-save", {
         }
       }
 
+      // Preserve existing team PINs, generate new ones for added teams
+      const existingPins = existing?.teamPins || {};
+      const newTeamCount = body.teamCount || 10;
+      for (let i = 0; i < newTeamCount; i++) {
+        if (!existingPins[String(i)]) existingPins[String(i)] = generatePin();
+      }
+
       const doc = {
         id: code,
         hostPin: existing?.hostPin || null,
-        playerTokens: existing?.playerTokens || {},
+        teamPins: existingPins,
         teams: body.teams,
         teamCount: body.teamCount,
         scores: body.scores,
@@ -224,7 +232,7 @@ app.http("session-save", {
   },
 });
 
-// POST /api/session/{code}/join — player joins a team, gets a token
+// POST /api/session/{code}/join — validate team PIN to join as player
 app.http("session-join", {
   methods: ["POST"],
   authLevel: "anonymous",
@@ -233,10 +241,13 @@ app.http("session-join", {
     const code = request.params.code.toUpperCase();
     try {
       const body = await request.json();
-      const { teamIdx } = body;
+      const { teamIdx, teamPin } = body;
 
       if (typeof teamIdx !== "number" || teamIdx < 0 || teamIdx > 19) {
         return { status: 400, jsonBody: { error: "teamIdx must be a number 0-19" } };
+      }
+      if (!teamPin || typeof teamPin !== "string") {
+        return { status: 400, jsonBody: { error: "teamPin is required" } };
       }
 
       const { resource } = await sessions.item(code, code).read();
@@ -250,23 +261,12 @@ app.http("session-join", {
         return { status: 400, jsonBody: { error: "Team index out of range" } };
       }
 
-      const playerToken = generateToken();
-
-      // Try atomic patch first
-      try {
-        await sessions.item(code, code).patch([
-          { op: "set", path: `/playerTokens/${teamIdx}`, value: playerToken },
-        ]);
-      } catch (patchErr) {
-        // Fallback: read-modify-write if playerTokens field doesn't exist
-        context.warn("Patch failed, falling back to read-modify-write:", patchErr.message);
-        const { resource: current } = await sessions.item(code, code).read();
-        if (!current.playerTokens) current.playerTokens = {};
-        current.playerTokens[teamIdx] = playerToken;
-        await sessions.items.upsert(current);
+      const expectedPin = (resource.teamPins || {})[String(teamIdx)];
+      if (!expectedPin || teamPin !== expectedPin) {
+        return { status: 403, jsonBody: { error: "Invalid team PIN" } };
       }
 
-      return { jsonBody: { playerToken } };
+      return { jsonBody: { ok: true } };
     } catch (err) {
       if (err.code === 404) {
         return { status: 404, jsonBody: { error: "Session not found" } };
@@ -277,7 +277,7 @@ app.http("session-join", {
   },
 });
 
-// PATCH /api/session/{code}/answer — atomic answer submission (player token required)
+// PATCH /api/session/{code}/answer — atomic answer submission (team PIN required)
 app.http("session-answer", {
   methods: ["PATCH"],
   authLevel: "anonymous",
@@ -308,18 +308,14 @@ app.http("session-answer", {
         return { status: 403, jsonBody: { error: "Session is closed" } };
       }
 
-      // Validate player token
-      const token = request.headers.get("x-player-token");
-      if (!token) {
-        return { status: 401, jsonBody: { error: "Player token required" } };
+      // Validate team PIN
+      const pin = request.headers.get("x-team-pin");
+      if (!pin) {
+        return { status: 401, jsonBody: { error: "Team PIN required" } };
       }
-      const tokenOwner = Object.entries(resource.playerTokens || {})
-        .find(([, t]) => t === token);
-      if (!tokenOwner) {
-        return { status: 403, jsonBody: { error: "Invalid player token" } };
-      }
-      if (parseInt(tokenOwner[0]) !== teamIdx) {
-        return { status: 403, jsonBody: { error: "Token does not match team" } };
+      const expectedPin = (resource.teamPins || {})[String(teamIdx)];
+      if (!expectedPin || pin !== expectedPin) {
+        return { status: 403, jsonBody: { error: "Invalid team PIN" } };
       }
 
       const patchKey = `${teamIdx}-${questionId}`;
@@ -377,7 +373,7 @@ app.http("session-admin-get", {
   },
 });
 
-// PATCH /api/session/{code}/admin — reset PIN or player token (admin only)
+// PATCH /api/session/{code}/admin — reset host PIN or team PIN (admin only)
 app.http("session-admin-patch", {
   methods: ["PATCH"],
   authLevel: "anonymous",
@@ -404,25 +400,52 @@ app.http("session-admin-patch", {
         return { jsonBody: { ok: true, hostPin: newPin } };
       }
 
-      if (action === "reset-token") {
+      if (action === "reset-team-pin") {
         if (typeof teamIdx !== "number" || teamIdx < 0) {
-          return { status: 400, jsonBody: { error: "teamIdx required for reset-token" } };
+          return { status: 400, jsonBody: { error: "teamIdx required for reset-team-pin" } };
         }
-        const newToken = generateToken();
-        if (!resource.playerTokens) resource.playerTokens = {};
-        resource.playerTokens[teamIdx] = newToken;
+        const newPin = generatePin();
+        if (!resource.teamPins) resource.teamPins = {};
+        resource.teamPins[String(teamIdx)] = newPin;
         resource.updatedAt = new Date().toISOString();
         await sessions.items.upsert(resource);
-        return { jsonBody: { ok: true, playerToken: newToken } };
+        return { jsonBody: { ok: true, teamPin: newPin } };
       }
 
-      return { status: 400, jsonBody: { error: "action must be 'reset-pin' or 'reset-token'" } };
+      return { status: 400, jsonBody: { error: "action must be 'reset-pin' or 'reset-team-pin'" } };
     } catch (err) {
       if (err.code === 404) {
         return { status: 404, jsonBody: { error: "Session not found" } };
       }
       context.error("Failed to admin-patch session:", err.message);
       return { status: 500, jsonBody: { error: "Failed to update session" } };
+    }
+  },
+});
+
+// GET /api/session/{code}/pins — get team PINs (host PIN required, for QR code generation)
+app.http("session-pins", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "session/{code}/pins",
+  handler: async (request, context) => {
+    const code = request.params.code.toUpperCase();
+    try {
+      const { resource } = await sessions.item(code, code).read();
+      if (!resource) {
+        return { status: 404, jsonBody: { error: "Session not found" } };
+      }
+      const pin = request.headers.get("x-host-pin");
+      if (!resource.hostPin || pin !== resource.hostPin) {
+        return { status: 403, jsonBody: { error: "Invalid host PIN" } };
+      }
+      return { jsonBody: { teamPins: resource.teamPins || {} } };
+    } catch (err) {
+      if (err.code === 404) {
+        return { status: 404, jsonBody: { error: "Session not found" } };
+      }
+      context.error("Failed to get pins:", err.message);
+      return { status: 500, jsonBody: { error: "Failed to get team PINs" } };
     }
   },
 });

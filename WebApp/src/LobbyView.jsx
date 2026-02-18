@@ -11,6 +11,7 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
   const [playerCode, setPlayerCode] = useState("GQ-");
   const [playerTeams, setPlayerTeams] = useState(null);
   const [playerTeamIdx, setPlayerTeamIdx] = useState(null);
+  const [playerPin, setPlayerPin] = useState("");
   const [playerError, setPlayerError] = useState(null);
   const [playerBusy, setPlayerBusy] = useState(false);
 
@@ -48,10 +49,10 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
   };
 
   const handlePlay = () => {
-    if (playerTeamIdx === null) return;
+    if (playerTeamIdx === null || !playerPin.trim() || playerPin.length < 4) return;
     setPlayerBusy(true);
-    onJoinAsPlayer(playerCode.trim().toUpperCase(), playerTeamIdx)
-      .catch(() => { setPlayerError("Failed to join."); setPlayerBusy(false); });
+    onJoinAsPlayer(playerCode.trim().toUpperCase(), playerTeamIdx, playerPin.trim())
+      .catch(() => { setPlayerError("Invalid PIN or failed to join."); setPlayerBusy(false); });
   };
 
   return (
@@ -102,7 +103,7 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 value={playerCode} placeholder="e.g. GQ-7K3M"
-                onChange={e => { const v = e.target.value.toUpperCase(); setPlayerCode(v.startsWith("GQ-") ? v : "GQ-"); setPlayerError(null); setPlayerTeams(null); setPlayerTeamIdx(null); }}
+                onChange={e => { const v = e.target.value.toUpperCase(); setPlayerCode(v.startsWith("GQ-") ? v : "GQ-"); setPlayerError(null); setPlayerTeams(null); setPlayerTeamIdx(null); setPlayerPin(""); }}
                 onKeyDown={e => e.key === "Enter" && handleFindSession()}
                 style={{ flex: 1, padding: "10px 14px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 15, background: C.greenDeep, color: C.cream, outline: "none", fontFamily: "'Inter', sans-serif", letterSpacing: 2, textAlign: "center" }}
                 onFocus={e => e.target.style.borderColor = C.greenSoft}
@@ -131,7 +132,19 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
                     </button>
                   ))}
                 </div>
-                <button onClick={handlePlay} disabled={playerTeamIdx === null || playerBusy} style={{ ...btnPrimary, width: "100%", marginTop: 12, opacity: (playerTeamIdx === null || playerBusy) ? 0.6 : 1 }}>
+                {playerTeamIdx !== null && (
+                  <div style={{ marginTop: 10 }}>
+                    <input
+                      value={playerPin} placeholder="Team PIN" type="text" inputMode="numeric" maxLength={4}
+                      onChange={e => { setPlayerPin(e.target.value.replace(/[^0-9]/g, "")); setPlayerError(null); }}
+                      onKeyDown={e => e.key === "Enter" && handlePlay()}
+                      style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 18, background: C.greenDeep, color: C.cream, outline: "none", fontFamily: "'Inter', sans-serif", letterSpacing: 6, textAlign: "center" }}
+                      onFocus={e => e.target.style.borderColor = C.greenSoft}
+                      onBlur={e => e.target.style.borderColor = C.border}
+                    />
+                  </div>
+                )}
+                <button onClick={handlePlay} disabled={playerTeamIdx === null || !playerPin.trim() || playerPin.length < 4 || playerBusy} style={{ ...btnPrimary, width: "100%", marginTop: 12, opacity: (playerTeamIdx === null || !playerPin.trim() || playerPin.length < 4 || playerBusy) ? 0.6 : 1 }}>
                   {playerBusy ? "Joining..." : "Join as Player"}
                 </button>
               </div>

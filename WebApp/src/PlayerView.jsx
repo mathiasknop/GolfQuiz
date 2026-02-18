@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { C, HERO_BG, LogoMark, SessionBadge, PLAYER_TOKEN_KEY, btnPrimary, btnGhost } from "./styles.jsx";
+import { C, HERO_BG, LogoMark, SessionBadge, TEAM_PIN_KEY, btnPrimary, btnGhost } from "./styles.jsx";
 
 export default function PlayerView({
   sessionCode,
@@ -42,10 +42,10 @@ export default function PlayerView({
       if (sessionStatus === "closed") return;
       setSubmitting((prev) => ({ ...prev, [questionId]: true }));
       try {
-        const token = localStorage.getItem(PLAYER_TOKEN_KEY) || "";
+        const pin = localStorage.getItem(TEAM_PIN_KEY) || "";
         const res = await fetch(`/api/session/${sessionCode}/answer`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json", "x-player-token": token },
+          headers: { "Content-Type": "application/json", "x-team-pin": pin },
           body: JSON.stringify({ teamIdx, questionId, answer: value }),
         });
         if (res.ok) {

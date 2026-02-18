@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { C, HERO_BG, LogoMark, CopyButton, SessionBadge, labelStyle, btnPrimary, btnGhost } from "./styles.jsx";
+import QRCodesView from "./QRCodesView.jsx";
 
 export default function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode, readOnly, hasScores, hostPin }) {
+  const [showQR, setShowQR] = useState(false);
+
   return (
     <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ position: "fixed", inset: 0, background: C.overlay, zIndex: 0 }} />
@@ -58,9 +62,11 @@ export default function SetupView({ teams, setTeams, teamCount, setTeamCount, on
           </div>
 
           <button onClick={onStart} style={{ ...btnPrimary, width: "100%" }}>{readOnly ? "View Scores" : hasScores ? "Back to Scoring" : "Start Scoring"}</button>
-          <button onClick={onLeaveSession} style={{ ...btnGhost, width: "100%", marginTop: 10, fontSize: 12 }}>Leave Session</button>
+          {hostPin && <button onClick={() => setShowQR(true)} style={{ ...btnGhost, width: "100%", marginTop: 8, fontSize: 12 }}>Print QR Codes</button>}
+          <button onClick={onLeaveSession} style={{ ...btnGhost, width: "100%", marginTop: 8, fontSize: 12 }}>Leave Session</button>
         </div>
       </div>
+      {showQR && <QRCodesView sessionCode={sessionCode} teams={teams} teamCount={teamCount} hostPin={hostPin} onClose={() => setShowQR(false)} />}
     </div>
   );
 }
