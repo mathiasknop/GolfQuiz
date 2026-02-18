@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { C, HERO_BG, LogoMark, btnPrimary, btnGhost } from "./styles.jsx";
 
-export default function LobbyView({ onNewSession, onJoinSession, onViewSessions, onJoinAsPlayer, onManageQuiz }) {
+export default function LobbyView({ onNewSession, onJoinSession, onViewSessions, onJoinAsPlayer, onManageQuiz, onGuide }) {
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [joinError, setJoinError] = useState(null);
@@ -140,9 +140,10 @@ export default function LobbyView({ onNewSession, onJoinSession, onViewSessions,
             )}
           </div>
 
-          <div style={{ textAlign: "center", marginTop: 8, display: "flex", justifyContent: "center", gap: 12 }}>
+          <div style={{ textAlign: "center", marginTop: 8, display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
             <button onClick={onViewSessions} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>View All Sessions</button>
             <button onClick={onManageQuiz} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>Manage Quiz</button>
+            <button onClick={onGuide} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>Help &amp; Guide</button>
           </div>
         </div>
       </div>
