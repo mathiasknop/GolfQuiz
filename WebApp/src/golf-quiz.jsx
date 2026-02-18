@@ -9,7 +9,6 @@ import LeaderboardView from "./LeaderboardView.jsx";
 import PlayerView from "./PlayerView.jsx";
 import ManageView from "./ManageView.jsx";
 import GuideView from "./GuideView.jsx";
-import AdminView from "./AdminView.jsx";
 
 const isAdmin = window.location.pathname.startsWith("/admin");
 
@@ -135,7 +134,7 @@ function App() {
 
   // Poll for remote changes every 3s (real-time sync across devices)
   useEffect(() => {
-    if (!initialized.current || !sessionCode || view === "lobby" || view === "sessions" || view === "manage" || view === "guide" || view === "admin") return;
+    if (!initialized.current || !sessionCode || view === "lobby" || view === "sessions" || view === "manage" || view === "guide") return;
     const poll = setInterval(() => {
       if (saveTimer.current) return;
       fetch(`/api/session/${sessionCode}`)
@@ -374,12 +373,11 @@ function App() {
     );
   }
 
-  if (view === "lobby" && isAdmin) return <AdminLobbyView onNewSession={handleNewSession} onViewSessions={() => setView("sessions")} onManageQuiz={() => setView("manage")} onAdmin={() => setView("admin")} onGuide={() => setView("guide")} />;
+  if (view === "lobby" && isAdmin) return <AdminLobbyView onNewSession={handleNewSession} onViewSessions={() => setView("sessions")} onManageQuiz={() => setView("manage")} onGuide={() => setView("guide")} />;
   if (view === "lobby") return <LobbyView onJoinSession={handleJoinSession} onJoinAsPlayer={handleJoinAsPlayer} onGuide={() => setView("guide")} />;
-  if (view === "sessions") return <SessionsOverview adminKey={adminKey} onBack={() => setView("lobby")} />;
+  if (view === "sessions") return <SessionsOverview adminKey={adminKey} onBack={() => setView("lobby")} onJoinSession={handleJoinSession} />;
   if (view === "manage") return <ManageView adminKey={adminKey} roundsData={roundsData} roundOrder={roundOrder} onBack={() => setView("lobby")} onRoundsChanged={handleRoundsChanged} />;
   if (view === "guide") return <GuideView onBack={() => setView("lobby")} />;
-  if (view === "admin") return <AdminView adminKey={adminKey} onBack={() => setView("lobby")} />;
   if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} hasScores={Object.keys(scores).length > 0} hostPin={hostPin} />;
   if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode} />;
   return (

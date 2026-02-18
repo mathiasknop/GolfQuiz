@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { C, HERO_BG, LogoMark, btnPrimary, btnGhost } from "./styles.jsx";
 
-export default function AdminLobbyView({ onNewSession, onViewSessions, onManageQuiz, onAdmin, onGuide }) {
+export default function AdminLobbyView({ onNewSession, onViewSessions, onManageQuiz, onGuide }) {
   const [busy, setBusy] = useState(false);
 
   const handleNew = () => {
@@ -33,7 +33,6 @@ export default function AdminLobbyView({ onNewSession, onViewSessions, onManageQ
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <button onClick={onViewSessions} style={{ ...btnGhost, width: "100%", fontSize: 13, letterSpacing: 2, padding: "12px 16px" }}>View All Sessions</button>
             <button onClick={onManageQuiz} style={{ ...btnGhost, width: "100%", fontSize: 13, letterSpacing: 2, padding: "12px 16px" }}>Manage Quiz</button>
-            <button onClick={onAdmin} style={{ ...btnGhost, width: "100%", fontSize: 13, letterSpacing: 2, padding: "12px 16px" }}>Admin Panel</button>
             <button onClick={onGuide} style={{ ...btnGhost, width: "100%", fontSize: 13, letterSpacing: 2, padding: "12px 16px" }}>Help &amp; Guide</button>
           </div>
         </div>
