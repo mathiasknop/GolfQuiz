@@ -227,9 +227,9 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
               Reopen
             </button>
           )}
-          {/* Next round shortcut (visible on current closed round when there's a next sequential round) */}
+          {/* Next round: go to leaderboard first so host doesn't forget to show standings */}
           {activeRound === currentOpenRound && roundClosed && nextRoundToOpen && !isClosed && (
-            <button onClick={() => handleOpenRound(nextRoundToOpen)} style={{
+            <button onClick={onLeaderboard} style={{
               ...btnPrimary, fontSize: 10, padding: "8px 14px",
               background: C.correct, color: C.creamBright,
             }}>

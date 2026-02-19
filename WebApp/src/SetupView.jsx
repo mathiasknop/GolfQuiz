@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { C, HERO_BG, LogoMark, CopyButton, SessionBadge, labelStyle, btnPrimary, btnGhost } from "./styles.jsx";
 import QRCodesView from "./QRCodesView.jsx";
+import AnswerSheetsView from "./AnswerSheetsView.jsx";
 
-export default function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode, readOnly, hasScores, hostPin }) {
+export default function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode, readOnly, hasScores, hostPin, roundsData, roundOrder }) {
   const [showQR, setShowQR] = useState(false);
+  const [showPin, setShowPin] = useState(false);
+  const [showAnswerSheets, setShowAnswerSheets] = useState(false);
 
   return (
     <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -14,12 +17,20 @@ export default function SetupView({ teams, setTeams, teamCount, setTeamCount, on
           <div style={{ marginTop: 16 }}><SessionBadge code={sessionCode} /></div>
           {hostPin && (
             <div style={{ marginTop: 12, fontFamily: "'Inter', sans-serif", textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: C.sage, letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>Host PIN</div>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.10)", borderRadius: 6, padding: "8px 20px" }}>
-                <span style={{ color: C.cream, fontWeight: 800, letterSpacing: 6, fontSize: 24 }}>{hostPin}</span>
-                <CopyButton text={hostPin} size={18} />
-              </div>
-              <div style={{ fontSize: 10, color: C.sageDark, marginTop: 6 }}>Save this PIN to rejoin as host</div>
+              {showPin ? (
+                <>
+                  <div style={{ fontSize: 11, color: C.sage, letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>Host PIN</div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.10)", borderRadius: 6, padding: "8px 20px" }}>
+                    <span style={{ color: C.cream, fontWeight: 800, letterSpacing: 6, fontSize: 24 }}>{hostPin}</span>
+                    <CopyButton text={hostPin} size={18} />
+                  </div>
+                  <div style={{ fontSize: 10, color: C.sageDark, marginTop: 6, cursor: "pointer", textDecoration: "underline" }} onClick={() => setShowPin(false)}>Hide PIN</div>
+                </>
+              ) : (
+                <div style={{ fontSize: 11, color: C.sageDark, cursor: "pointer", textDecoration: "underline" }} onClick={() => setShowPin(true)}>
+                  Show Host PIN
+                </div>
+              )}
             </div>
           )}
           <div style={{ marginTop: 12, fontFamily: "'Inter', sans-serif", fontSize: 12, letterSpacing: 5, textTransform: "uppercase", color: C.sage, fontWeight: 300 }}>
@@ -63,10 +74,12 @@ export default function SetupView({ teams, setTeams, teamCount, setTeamCount, on
 
           <button onClick={onStart} style={{ ...btnPrimary, width: "100%" }}>{readOnly ? "View Scores" : hasScores ? "Back to Scoring" : "Start Scoring"}</button>
           {hostPin && <button onClick={() => setShowQR(true)} style={{ ...btnGhost, width: "100%", marginTop: 8, fontSize: 12 }}>Print QR Codes</button>}
+          {roundOrder && roundOrder.length > 0 && <button onClick={() => setShowAnswerSheets(true)} style={{ ...btnGhost, width: "100%", marginTop: 8, fontSize: 12 }}>Print Answer Sheets</button>}
           <button onClick={onLeaveSession} style={{ ...btnGhost, width: "100%", marginTop: 8, fontSize: 12 }}>Leave Session</button>
         </div>
       </div>
       {showQR && <QRCodesView sessionCode={sessionCode} teams={teams} teamCount={teamCount} hostPin={hostPin} onClose={() => setShowQR(false)} />}
+      {showAnswerSheets && <AnswerSheetsView roundsData={roundsData} roundOrder={roundOrder} teams={teams} teamCount={teamCount} sessionCode={sessionCode} onClose={() => setShowAnswerSheets(false)} />}
     </div>
   );
 }
