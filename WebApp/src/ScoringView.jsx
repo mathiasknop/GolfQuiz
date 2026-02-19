@@ -61,7 +61,7 @@ function ScoreButton({ value, onChange, disabled }) {
 }
 
 export default function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, onLeaveSession, roundsData, roundOrder, sessionCode, sessionStatus, onToggleStatus, answers, openRounds, setOpenRounds, roundClosed, setRoundClosed, roundTimers, setRoundTimers, lastSeen }) {
-  const round = roundsData[activeRound];
+  const round = roundsData?.[activeRound];
   const isClosed = sessionStatus === "closed";
   const currentOpenRound = openRounds.length > 0 ? openRounds[openRounds.length - 1] : null;
   const nextRoundToOpen = roundOrder.find(rid => !openRounds.includes(rid)) || null;
@@ -116,8 +116,10 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
     setRoundClosed(false);
   };
 
+  const [autoScoring, setAutoScoring] = useState(false);
   const handleAutoScore = () => {
-    if (!round || isClosed) return;
+    if (!round || isClosed || autoScoring) return;
+    setAutoScoring(true);
     activeTeams.forEach((_, tIdx) => {
       round.questions.forEach(q => {
         const key = `${tIdx}-${q.id}`;
@@ -127,7 +129,14 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
         setScore(tIdx, q.id, fuzzyMatch(playerAnswer, q.answer) ? 1 : 0);
       });
     });
+    setTimeout(() => setAutoScoring(false), 600);
   };
+  if (!round) return (
+    <div style={{ minHeight: "100vh", background: C.greenDeep, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ color: C.sage, fontFamily: "'Inter', sans-serif", fontSize: 14 }}>Loading round data...</div>
+    </div>
+  );
+
   return (
     <div style={{ minHeight: "100vh", background: C.greenDeep, fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>
       {/* Top bar */}
@@ -237,10 +246,11 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
             </button>
           )}
           {!isClosed && (
-            <button onClick={handleAutoScore} style={{
+            <button onClick={handleAutoScore} disabled={autoScoring} style={{
               ...btnGhost, fontSize: 10, color: C.gold, borderColor: C.gold,
+              opacity: autoScoring ? 0.5 : 1, cursor: autoScoring ? "default" : "pointer",
             }}>
-              Auto-score
+              {autoScoring ? "Scoring..." : "Auto-score"}
             </button>
           )}
           <button onClick={() => setShowAnswers(!showAnswers)} style={{
