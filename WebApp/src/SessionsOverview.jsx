@@ -49,6 +49,22 @@ export default function SessionsOverview({ adminKey, onBack, onJoinSession }) {
       .catch(() => {});
   };
 
+  function deleteSession(code) {
+    if (!confirm(`Delete session ${code}? This cannot be undone.`)) return;
+    setActionBusy(prev => ({ ...prev, [`del-${code}`]: true }));
+    fetch(`/api/session/${code}`, {
+      method: "DELETE",
+      headers: { "x-admin-key": adminKey },
+    })
+      .then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then(() => {
+        setSessions(prev => prev.filter(s => s.id !== code));
+        if (expandedId === code) setExpandedId(null);
+      })
+      .catch(() => {})
+      .finally(() => setActionBusy(prev => ({ ...prev, [`del-${code}`]: false })));
+  }
+
   function resetPin(code) {
     setActionBusy(prev => ({ ...prev, [`pin-${code}`]: true }));
     fetch(`/api/session/${code}/admin`, {
@@ -157,6 +173,14 @@ export default function SessionsOverview({ adminKey, onBack, onJoinSession }) {
                             </button>
                             <button onClick={() => handleToggleStatus(s.id, s.status || "open")} style={{ ...btnGhost, fontSize: 12, padding: "8px 16px" }}>
                               {isClosed ? "Reopen" : "Close"}
+                            </button>
+                            <div style={{ flex: 1 }} />
+                            <button
+                              onClick={() => deleteSession(s.id)}
+                              disabled={actionBusy[`del-${s.id}`]}
+                              style={{ ...btnGhost, fontSize: 12, padding: "8px 16px", color: C.wrong, borderColor: "rgba(196, 92, 92, 0.3)", opacity: actionBusy[`del-${s.id}`] ? 0.5 : 1 }}
+                            >
+                              {actionBusy[`del-${s.id}`] ? "Deleting..." : "Delete"}
                             </button>
                           </div>
 

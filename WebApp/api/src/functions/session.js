@@ -151,6 +151,26 @@ app.http("sessions-list", {
   },
 });
 
+// DELETE /api/session/{code} — delete a session (admin key required)
+app.http("session-delete", {
+  methods: ["DELETE"],
+  authLevel: "anonymous",
+  route: "session/{code}",
+  handler: async (request, context) => {
+    const authErr = requireAdminKey(request);
+    if (authErr) return authErr;
+    const code = request.params.code;
+    try {
+      await sessions.item(code, code).delete();
+      return { jsonBody: { ok: true } };
+    } catch (err) {
+      if (err.code === 404) return { status: 404, jsonBody: { error: "Session not found" } };
+      context.error("Failed to delete session:", err.message);
+      return { status: 500, jsonBody: { error: "Failed to delete session" } };
+    }
+  },
+});
+
 // PATCH /api/session/{code}/status — close or reopen (host PIN or admin key)
 app.http("session-status", {
   methods: ["PATCH"],
