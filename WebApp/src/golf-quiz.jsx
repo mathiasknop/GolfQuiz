@@ -26,6 +26,8 @@ function App() {
   const [activeRound, setActiveRound] = useState(null);
   const [showAnswers, setShowAnswers] = useState(true);
   const [sessionStatus, setSessionStatus] = useState("open");
+  const [openRounds, setOpenRounds] = useState([]);
+  const [lastSeen, setLastSeen] = useState({});
   const [revealCount, setRevealCount] = useState(0);
   const [revealed, setRevealed] = useState(false);
 
@@ -55,6 +57,8 @@ function App() {
     setView(session.view === "lobby" ? "setup" : (session.view || "setup"));
     setShowAnswers(session.showAnswers !== undefined ? session.showAnswers : true);
     setSessionStatus(session.status || "open");
+    setOpenRounds(session.openRounds || []);
+    setLastSeen(session.lastSeen || {});
     // Restore role from localStorage
     const savedRole = localStorage.getItem(ROLE_KEY);
     const savedTeamIdx = localStorage.getItem(TEAM_IDX_KEY);
@@ -126,18 +130,21 @@ function App() {
       fetch(`/api/session/${sessionCode}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "x-host-pin": pin },
-        body: JSON.stringify({ teams, teamCount, scores, activeRound, view, showAnswers }),
+        body: JSON.stringify({ teams, teamCount, scores, activeRound, view, showAnswers, openRounds }),
       }).catch(() => {}).finally(() => { saveTimer.current = null; });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [teams, teamCount, scores, activeRound, view, showAnswers, sessionCode, sessionStatus, role]);
+  }, [teams, teamCount, scores, activeRound, view, showAnswers, openRounds, sessionCode, sessionStatus, role]);
 
   // Poll for remote changes every 3s (real-time sync across devices)
   useEffect(() => {
     if (!initialized.current || !sessionCode || view === "lobby" || view === "sessions" || view === "manage" || view === "guide") return;
     const poll = setInterval(() => {
       if (saveTimer.current) return;
-      fetch(`/api/session/${sessionCode}`)
+      const pollUrl = role === "player" && playerTeamIdx != null
+        ? `/api/session/${sessionCode}?t=${playerTeamIdx}`
+        : `/api/session/${sessionCode}`;
+      fetch(pollUrl)
         .then(r => r.ok ? r.json() : null)
         .then(d => {
           if (!d?.session) return;
@@ -149,6 +156,8 @@ function App() {
           setActiveRound(prev => s.activeRound && s.activeRound !== prev ? s.activeRound : prev);
           setSessionStatus(prev => { const st = s.status || "open"; return st !== prev ? st : prev; });
           setAnswers(prev => JSON.stringify(prev) === JSON.stringify(s.answers || {}) ? prev : (s.answers || {}));
+          setOpenRounds(prev => { const next = s.openRounds || []; return JSON.stringify(prev) === JSON.stringify(next) ? prev : next; });
+          setLastSeen(prev => { const next = s.lastSeen || {}; return JSON.stringify(prev) === JSON.stringify(next) ? prev : next; });
         })
         .catch(() => {});
     }, 3000);
@@ -231,6 +240,8 @@ function App() {
     setActiveRound(roundOrder[0] || null);
     setShowAnswers(true);
     setSessionStatus("open");
+    setOpenRounds([]);
+    setLastSeen({});
     setRevealCount(0);
     setRevealed(false);
     setRole("host");
@@ -319,6 +330,7 @@ function App() {
         roundOrder={roundOrder}
         answers={answers}
         sessionStatus={sessionStatus}
+        openRounds={openRounds}
         onLeave={handleLeaveSession}
       />
     );
@@ -391,6 +403,8 @@ function App() {
       roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode}
       sessionStatus={sessionStatus} onToggleStatus={handleToggleSessionStatus}
       answers={answers}
+      openRounds={openRounds} setOpenRounds={setOpenRounds}
+      lastSeen={lastSeen}
     />
   );
 }

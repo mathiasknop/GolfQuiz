@@ -10,11 +10,16 @@ export default function PlayerView({
   roundOrder,
   answers,
   sessionStatus,
+  openRounds,
   onLeave,
 }) {
   const [localAnswers, setLocalAnswers] = useState({});
   const [submitting, setSubmitting] = useState({});
-  const [selectedTab, setSelectedTab] = useState(activeRound || (roundOrder && roundOrder[0]) || null);
+  const visibleRounds = roundOrder ? roundOrder.filter(rid => (openRounds || []).includes(rid)) : [];
+  const currentRound = openRounds && openRounds.length > 0 ? openRounds[openRounds.length - 1] : null;
+  const [selectedTab, setSelectedTab] = useState(currentRound || activeRound || (roundOrder && roundOrder[0]) || null);
+  const isRoundAnswerable = (rid) => rid === currentRound && sessionStatus === "open";
+  const isRoundClosed = (rid) => (openRounds || []).includes(rid) && rid !== currentRound;
 
   // Merge server answers into local state (only this team's answers)
   useEffect(() => {
@@ -30,23 +35,24 @@ export default function PlayerView({
     setLocalAnswers((prev) => ({ ...prev, ...merged }));
   }, [answers, teamIdx]);
 
-  // Keep selected tab in sync with activeRound from host
+  // Auto-navigate to newly opened round
   useEffect(() => {
-    if (activeRound) setSelectedTab(activeRound);
-  }, [activeRound]);
+    if (currentRound) setSelectedTab(currentRound);
+  }, [currentRound]);
 
   const round = roundsData && selectedTab ? roundsData[selectedTab] : null;
 
   const submitAnswer = useCallback(
     async (questionId, value) => {
       if (sessionStatus === "closed") return;
+      if (!isRoundAnswerable(selectedTab)) return;
       setSubmitting((prev) => ({ ...prev, [questionId]: true }));
       try {
         const pin = localStorage.getItem(TEAM_PIN_KEY) || "";
         const res = await fetch(`/api/session/${sessionCode}/answer`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", "x-team-pin": pin },
-          body: JSON.stringify({ teamIdx, questionId, answer: value }),
+          body: JSON.stringify({ teamIdx, questionId, answer: value, roundId: selectedTab }),
         });
         if (res.ok) {
           setLocalAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -57,7 +63,7 @@ export default function PlayerView({
         setSubmitting((prev) => ({ ...prev, [questionId]: false }));
       }
     },
-    [sessionCode, teamIdx, sessionStatus]
+    [sessionCode, teamIdx, sessionStatus, currentRound, selectedTab] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const getTabLabel = (key) => {
@@ -121,24 +127,20 @@ export default function PlayerView({
         </button>
       </div>
 
-      {/* Closed banner */}
+      {/* Status banner */}
       {isClosed && (
-        <div
-          style={{
-            background: "#b91c1c",
-            color: "#fff",
-            textAlign: "center",
-            padding: "10px 12px",
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
-          Session is closed — answers are locked
+        <div style={{ background: "#b91c1c", color: "#fff", textAlign: "center", padding: "10px 12px", fontSize: 13, fontWeight: 600 }}>
+          Session is closed {"\u2014"} answers are locked
+        </div>
+      )}
+      {!isClosed && selectedTab && isRoundClosed(selectedTab) && (
+        <div style={{ background: "rgba(90, 158, 106, 0.15)", color: C.correctBright, textAlign: "center", padding: "10px 12px", fontSize: 13, fontWeight: 600 }}>
+          Round closed {"\u2014"} review correct answers below
         </div>
       )}
 
       {/* Round tabs */}
-      {roundOrder && roundOrder.length > 0 && (
+      {visibleRounds.length > 0 ? (
         <div
           style={{
             display: "flex",
@@ -150,8 +152,9 @@ export default function PlayerView({
             borderBottom: `1px solid ${C.border}`,
           }}
         >
-          {roundOrder.map((key) => {
+          {visibleRounds.map((key) => {
             const isActive = key === selectedTab;
+            const isCurrent = key === currentRound;
             return (
               <button
                 key={key}
@@ -161,9 +164,9 @@ export default function PlayerView({
                   padding: "8px 14px",
                   minHeight: 44,
                   borderRadius: 3,
-                  border: isActive ? `1px solid ${C.gold}` : `1px solid ${C.border}`,
+                  border: isActive ? `1px solid ${C.gold}` : isCurrent ? `1px solid ${C.correct}` : `1px solid ${C.border}`,
                   background: isActive ? C.greenMid : "transparent",
-                  color: isActive ? C.cream : C.sage,
+                  color: isActive ? C.cream : isCurrent ? C.correctBright : C.sage,
                   fontWeight: isActive ? 700 : 500,
                   fontSize: 13,
                   fontFamily: "'Inter', sans-serif",
@@ -171,21 +174,32 @@ export default function PlayerView({
                   whiteSpace: "nowrap",
                 }}
               >
-                {getTabLabel(key)}
+                {getTabLabel(key)}{isCurrent && !isActive ? " \u25CF" : ""}
               </button>
             );
           })}
+        </div>
+      ) : (
+        <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>
+          Waiting for the host to start the quiz...
         </div>
       )}
 
       {/* Question cards */}
       <div style={{ padding: "12px 12px 80px 12px" }}>
-        {round && round.questions && round.questions.length > 0 ? (
+        {!selectedTab || !visibleRounds.includes(selectedTab) ? (
+          <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>
+            Waiting for the host to start the quiz...
+          </div>
+        ) : round && round.questions && round.questions.length > 0 ? (
           round.questions.map((q) => {
             const serverAnswer = answers ? answers[`${teamIdx}-${q.id}`] : undefined;
             const localVal = localAnswers[q.id] || "";
             const isSubmitted = serverAnswer !== undefined && serverAnswer !== null;
             const isLoading = submitting[q.id] || false;
+            const answerable = isRoundAnswerable(selectedTab);
+            const disabled = !answerable;
+            const roundIsClosed = isRoundClosed(selectedTab);
 
             return (
               <div
@@ -202,7 +216,18 @@ export default function PlayerView({
                 <div style={{ fontWeight: 700, color: C.cream, fontSize: 14, marginBottom: 4 }}>
                   {q.label}
                 </div>
-                <div style={{ color: C.sage, fontSize: 13, marginBottom: 12 }}>{q.text}</div>
+                <div style={{ color: C.sage, fontSize: 13, marginBottom: roundIsClosed && q.answer ? 6 : 12 }}>{q.text}</div>
+
+                {/* Correct answer reveal for closed rounds */}
+                {roundIsClosed && q.answer && (
+                  <div style={{
+                    marginBottom: 12, padding: "8px 12px", borderRadius: 3,
+                    background: "rgba(90, 158, 106, 0.12)", border: `1px solid rgba(90, 158, 106, 0.25)`,
+                    color: C.correctBright, fontSize: 13, fontWeight: 600,
+                  }}>
+                    {"\u2713"} {q.answer}
+                  </div>
+                )}
 
                 {q.type === "image" && (
                   <div style={{ color: C.sage, fontSize: 12, fontStyle: "italic", marginBottom: 10 }}>
@@ -225,7 +250,7 @@ export default function PlayerView({
                       return (
                         <button
                           key={i}
-                          disabled={isClosed}
+                          disabled={disabled}
                           onClick={() =>
                             setLocalAnswers((prev) => ({ ...prev, [q.id]: opt }))
                           }
@@ -234,13 +259,13 @@ export default function PlayerView({
                             borderRadius: 3,
                             fontSize: 13,
                             fontFamily: "'Inter', sans-serif",
-                            cursor: isClosed ? "not-allowed" : "pointer",
+                            cursor: disabled ? "not-allowed" : "pointer",
                             minHeight: 44,
                             border: isSelected ? "none" : `1px solid ${C.border}`,
                             background: isSelected ? C.cream : C.greenMid,
                             color: isSelected ? C.greenDeep : C.sage,
                             fontWeight: isSelected ? 600 : 400,
-                            opacity: isClosed ? 0.6 : 1,
+                            opacity: disabled ? 0.6 : 1,
                           }}
                         >
                           {opt}
@@ -256,7 +281,7 @@ export default function PlayerView({
                     <input
                       type="text"
                       value={localVal}
-                      disabled={isClosed}
+                      disabled={disabled}
                       onChange={(e) =>
                         setLocalAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
                       }
@@ -272,7 +297,7 @@ export default function PlayerView({
                         fontSize: 13,
                         fontFamily: "'Inter', sans-serif",
                         outline: "none",
-                        opacity: isClosed ? 0.6 : 1,
+                        opacity: disabled ? 0.6 : 1,
                       }}
                     />
                   </div>
@@ -295,7 +320,7 @@ export default function PlayerView({
                       return (
                         <button
                           key={i}
-                          disabled={isClosed}
+                          disabled={disabled}
                           onClick={() =>
                             setLocalAnswers((prev) => ({ ...prev, [q.id]: opt }))
                           }
@@ -304,13 +329,13 @@ export default function PlayerView({
                             borderRadius: 3,
                             fontSize: 12,
                             fontFamily: "'Inter', sans-serif",
-                            cursor: isClosed ? "not-allowed" : "pointer",
+                            cursor: disabled ? "not-allowed" : "pointer",
                             minHeight: 44,
                             border: isSelected ? "none" : `1px solid ${C.border}`,
                             background: isSelected ? C.cream : C.greenMid,
                             color: isSelected ? C.greenDeep : C.sage,
                             fontWeight: isSelected ? 600 : 400,
-                            opacity: isClosed ? 0.6 : 1,
+                            opacity: disabled ? 0.6 : 1,
                           }}
                         >
                           {opt}
@@ -321,39 +346,39 @@ export default function PlayerView({
                 )}
 
                 {/* Submit button + submitted indicator */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <button
-                    disabled={isClosed || isLoading || !localVal}
-                    onClick={() => submitAnswer(q.id, localVal)}
-                    style={{
-                      ...btnPrimary,
-                      fontSize: 11,
-                      padding: "8px 16px",
-                      minHeight: 44,
-                      opacity: isClosed || isLoading || !localVal ? 0.5 : 1,
-                      cursor: isClosed || isLoading || !localVal ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {isLoading ? "Sending..." : isSubmitted ? "Update" : "Submit"}
-                  </button>
-                  {isSubmitted && (
-                    <span style={{ color: C.gold, fontSize: 12, fontWeight: 600 }}>
-                      {"\u2713"} Submitted
-                    </span>
-                  )}
-                </div>
+                {answerable && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <button
+                      disabled={isLoading || !localVal}
+                      onClick={() => submitAnswer(q.id, localVal)}
+                      style={{
+                        ...btnPrimary,
+                        fontSize: 11,
+                        padding: "8px 16px",
+                        minHeight: 44,
+                        opacity: isLoading || !localVal ? 0.5 : 1,
+                        cursor: isLoading || !localVal ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {isLoading ? "Sending..." : isSubmitted ? "Update" : "Submit"}
+                    </button>
+                    {isSubmitted && (
+                      <span style={{ color: C.gold, fontSize: 12, fontWeight: 600 }}>
+                        {"\u2713"} Submitted
+                      </span>
+                    )}
+                  </div>
+                )}
+                {!answerable && isSubmitted && (
+                  <div style={{ fontSize: 12, color: C.sage, fontStyle: "italic" }}>
+                    Your answer: {serverAnswer}
+                  </div>
+                )}
               </div>
             );
           })
         ) : (
-          <div
-            style={{
-              textAlign: "center",
-              color: C.sage,
-              fontSize: 14,
-              padding: "40px 20px",
-            }}
-          >
+          <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>
             {round ? "No questions in this round yet." : "Waiting for the host to start a round..."}
           </div>
         )}

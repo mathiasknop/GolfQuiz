@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import QRCode from "qrcode";
-import { C, LogoMark, btnPrimary, btnGhost } from "./styles.jsx";
+import { C, HERO_BG, LOGO_DATA_URI, btnPrimary, btnGhost } from "./styles.jsx";
 
 export default function QRCodesView({ sessionCode, teams, teamCount, hostPin, onClose }) {
   const [qrCodes, setQrCodes] = useState([]);
@@ -8,13 +8,15 @@ export default function QRCodesView({ sessionCode, teams, teamCount, hostPin, on
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Inject print styles
     const style = document.createElement("style");
     style.textContent = `
       @media print {
         .qr-no-print { display: none !important; }
-        body { background: white !important; }
+        body { background: white !important; margin: 0 !important; padding: 0 !important; }
+        .qr-page { page-break-after: always; break-after: page; }
+        .qr-page:last-child { page-break-after: avoid; break-after: avoid; }
       }
+      @page { size: A4 portrait; margin: 0; }
     `;
     document.head.appendChild(style);
     return () => document.head.removeChild(style);
@@ -34,9 +36,9 @@ export default function QRCodesView({ sessionCode, teams, teamCount, hostPin, on
           if (!pin) continue;
           const url = `${baseUrl}/?s=${sessionCode}&t=${i}&p=${pin}`;
           const dataUri = await QRCode.toDataURL(url, {
-            width: 256,
+            width: 400,
             margin: 2,
-            color: { dark: "#000000", light: "#ffffff" },
+            color: { dark: C.greenDeep, light: "#ffffff" },
           });
           codes.push({ teamIdx: i, teamName: teams[i] || `Team ${i + 1}`, pin, dataUri });
         }
@@ -66,52 +68,74 @@ export default function QRCodesView({ sessionCode, teams, teamCount, hostPin, on
   return (
     <div style={overlayStyle}>
       {/* Screen-only header */}
-      <div className="qr-no-print" style={{ padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #ddd", background: "#f9f9f9" }}>
-        <button onClick={onClose} style={{ ...btnGhost, color: "#333", fontSize: 13 }}>{"\u2190"} Close</button>
-        <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 14, fontWeight: 600, color: "#333" }}>
+      <div className="qr-no-print" style={{ position: "sticky", top: 0, zIndex: 10, padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${C.border}`, background: C.greenDark }}>
+        <button onClick={onClose} style={{ ...btnGhost, fontSize: 13 }}>{"\u2190"} Close</button>
+        <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 14, fontWeight: 600, color: C.cream }}>
           QR Codes — {sessionCode}
         </div>
         <button onClick={() => window.print()} style={{ ...btnPrimary, fontSize: 13, padding: "8px 20px" }}>Print</button>
       </div>
 
-      {/* Printable grid */}
-      <div style={gridStyle}>
-        {qrCodes.map(qr => (
-          <div key={qr.teamIdx} style={cardStyle}>
-            <LogoMark size="sm" />
-            <div style={{ fontFamily: "'Inter',sans-serif", fontWeight: 700, fontSize: 16, color: "#111", textAlign: "center", marginTop: 8, marginBottom: 8 }}>
-              {qr.teamName}
-            </div>
-            <img src={qr.dataUri} alt={`QR for ${qr.teamName}`} style={{ width: 180, height: 180 }} />
-            <div style={{ fontFamily: "monospace", fontSize: 13, color: "#555", marginTop: 8, textAlign: "center" }}>
-              PIN: <strong>{qr.pin}</strong>
-            </div>
-            <div style={{ fontFamily: "monospace", fontSize: 11, color: "#999", marginTop: 2, textAlign: "center" }}>
+      {/* One A4 page per team */}
+      {qrCodes.map(qr => (
+        <div key={qr.teamIdx} className="qr-page" style={pageStyle}>
+          {/* Background overlay */}
+          <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${HERO_BG})`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.15, zIndex: 0 }} />
+          <div style={{ position: "absolute", inset: 0, background: C.greenDeep, opacity: 0.92, zIndex: 1 }} />
+
+          {/* Content */}
+          <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", padding: "40px 32px" }}>
+            {/* Logo */}
+            <img src={LOGO_DATA_URI} alt="The National Golf Brussels" style={{ width: 200, height: "auto", marginBottom: 32 }} />
+
+            {/* Session badge */}
+            <div style={{ fontFamily: "monospace", fontSize: 14, color: C.sage, letterSpacing: 3, marginBottom: 40 }}>
               {sessionCode}
             </div>
+
+            {/* Team name */}
+            <h1 style={{ fontFamily: "'Inter',sans-serif", fontWeight: 700, fontSize: 42, color: C.cream, textAlign: "center", margin: "0 0 40px", letterSpacing: 2, textTransform: "uppercase" }}>
+              {qr.teamName}
+            </h1>
+
+            {/* QR code in white card */}
+            <div style={{ background: "#fff", borderRadius: 12, padding: 24, display: "flex", flexDirection: "column", alignItems: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+              <img src={qr.dataUri} alt={`QR for ${qr.teamName}`} style={{ width: 240, height: 240 }} />
+            </div>
+
+            {/* Instructions */}
+            <div style={{ marginTop: 36, textAlign: "center" }}>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, color: C.cream, fontWeight: 600, marginBottom: 8 }}>
+                Scan to join the quiz
+              </div>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 14, color: C.sage }}>
+                Or enter code <strong style={{ color: C.cream }}>{sessionCode}</strong> with PIN <strong style={{ color: C.cream }}>{qr.pin}</strong>
+              </div>
+            </div>
+
+            {/* Footer divider + branding */}
+            <div style={{ marginTop: "auto", paddingTop: 32, textAlign: "center" }}>
+              <div style={{ width: 60, height: 1, background: C.sage, margin: "0 auto 16px", opacity: 0.4 }} />
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 11, color: C.sageMuted, letterSpacing: 2, textTransform: "uppercase" }}>
+                Golf Quiz
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
 
 const overlayStyle = {
   position: "fixed", inset: 0, zIndex: 9999,
-  background: "#fff", overflowY: "auto",
+  background: C.greenDeep, overflowY: "auto",
 };
 
-const gridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-  gap: 24,
-  padding: 24,
-  maxWidth: 900,
+const pageStyle = {
+  position: "relative",
+  width: "210mm",
+  minHeight: "297mm",
   margin: "0 auto",
-};
-
-const cardStyle = {
-  display: "flex", flexDirection: "column", alignItems: "center",
-  padding: 20, border: "1px solid #ddd", borderRadius: 8,
-  pageBreakInside: "avoid",
+  overflow: "hidden",
 };

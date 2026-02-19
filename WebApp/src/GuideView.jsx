@@ -53,15 +53,21 @@ export default function GuideView({ onBack }) {
           <p>On the <span style={strong}>Setup</span> screen, use the slider to set the number of teams (2-20) and edit each team name. All changes are saved automatically.</p>
 
           <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>3. Print QR Codes</p>
-          <p>Tap <span style={strong}>Print QR Codes</span> on the Setup screen to generate a printable sheet of QR codes — one per team. Place these on each table so players can scan and join instantly. Each QR code contains the session code, team assignment, and Team PIN.</p>
+          <p>Tap <span style={strong}>Print QR Codes</span> on the Setup screen. Each team gets a full <span style={strong}>A4 page</span> with the club branding, team name, QR code, and join instructions. Print and place one page on each table before the quiz starts.</p>
 
-          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>4. Score the Quiz</p>
-          <p>Tap <span style={strong}>Start Scoring</span>. The <span style={strong}>Scoring</span> screen shows round tabs across the top. For each question, tap <span style={{ color: C.correct }}>&#10003;</span> (correct) or <span style={{ color: C.wrong }}>&#10007;</span> (wrong). Tap again to undo.</p>
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>4. Control the Rounds</p>
+          <p>The host controls which round is open for answers. Tap <span style={strong}>Start Round</span> to open the first round. When you're ready, tap <span style={strong}>Next Round</span> to close the current round and open the next one. Players can only submit answers for the current round — previous rounds become read-only with correct answers shown.</p>
+          <p>A <span style={{ color: C.correctBright }}>green dot</span> next to each team name shows which teams have an active player connected. A <span style={{ color: C.sageMuted }}>gray dot</span> means no player has been seen in the last 15 seconds.</p>
+
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>5. Score the Quiz</p>
+          <p>The <span style={strong}>Scoring</span> screen shows round tabs across the top. For each question, tap <span style={{ color: C.correct }}>&#10003;</span> (correct) or <span style={{ color: C.wrong }}>&#10007;</span> (wrong). Tap again to undo. Player answers are shown below each score button so you can verify them.</p>
           <div style={tableWrap}>
             <table style={table}>
               <thead><tr><th style={th}>Button</th><th style={th}>What it does</th></tr></thead>
               <tbody>
+                <tr><td style={td}><span style={{ color: C.gold, fontWeight: 600 }}>Auto-score</span></td><td style={td}>Automatically scores all unanswered questions using fuzzy matching (handles typos, partial names, accents). You can override any auto-scored result.</td></tr>
                 <tr><td style={td}><span style={strong}>Show / Hide Answers</span></td><td style={td}>Toggle a row showing the correct answer per question</td></tr>
+                <tr><td style={td}><span style={strong}>Start Round / Next Round</span></td><td style={td}>Open the first or next round for player answers</td></tr>
                 <tr><td style={td}><span style={strong}>Setup</span></td><td style={td}>Go back to edit teams</td></tr>
                 <tr><td style={td}><span style={strong}>Leaderboard</span></td><td style={td}>Open the leaderboard reveal</td></tr>
                 <tr><td style={td}><span style={strong}>Close / Reopen</span></td><td style={td}>Lock or unlock the session</td></tr>
@@ -69,10 +75,10 @@ export default function GuideView({ onBack }) {
             </table>
           </div>
 
-          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>5. Reveal the Leaderboard</p>
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>6. Reveal the Leaderboard</p>
           <p>Tap <span style={strong}>Reveal #N</span> to show teams one at a time from last place to first, or tap <span style={strong}>Show All</span> to reveal everyone at once. Top 3 teams get gold, silver and bronze medals.</p>
 
-          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>6. Resume a Session</p>
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>7. Resume a Session</p>
           <p>If you close the browser, return to the lobby and enter your session code and <span style={strong}>Host PIN</span> to rejoin. The app picks up exactly where you left off.</p>
         </>
       ),
@@ -95,7 +101,7 @@ export default function GuideView({ onBack }) {
           <p>Multiple players on the same team can join at the same time — everyone sees each other's answers in real time.</p>
 
           <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>2. Answer Questions</p>
-          <p>The host's active round is selected automatically. Depending on the question type:</p>
+          <p>You'll see a "Waiting for the host to start the quiz..." message until the host opens the first round. Once a round is open, it appears automatically. Depending on the question type:</p>
           <div style={tableWrap}>
             <table style={table}>
               <thead><tr><th style={th}>Type</th><th style={th}>How to answer</th></tr></thead>
@@ -107,9 +113,12 @@ export default function GuideView({ onBack }) {
               </tbody>
             </table>
           </div>
-          <p>Tap <span style={strong}>Submit</span> to send your answer. You can change it and tap <span style={strong}>Update</span> at any time (as long as the session is open).</p>
+          <p>Tap <span style={strong}>Submit</span> to send your answer. You can change it and tap <span style={strong}>Update</span> while the round is still open.</p>
 
-          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>3. Session Closed</p>
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>3. Review Previous Rounds</p>
+          <p>When the host moves to the next round, previous rounds become read-only. You can tap any closed round tab to review the questions and see the <span style={{ color: C.correctBright }}>correct answers</span> alongside your submitted answer.</p>
+
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>4. Session Closed</p>
           <p>When the host closes the session, a red banner appears and all inputs are locked. Tap <span style={strong}>Leave</span> to return to the lobby.</p>
         </>
       ),
@@ -165,8 +174,9 @@ export default function GuideView({ onBack }) {
       body: (
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li style={{ marginBottom: 8 }}><span style={strong}>Projector setup:</span> Open the app on a laptop connected to the projector. Use the Scoring view during rounds and switch to the Leaderboard for the reveal.</li>
-          <li style={{ marginBottom: 8 }}><span style={strong}>Print QR codes beforehand:</span> Print the QR code sheet from the Setup screen and place one card on each team table before the quiz starts.</li>
+          <li style={{ marginBottom: 8 }}><span style={strong}>Print QR codes beforehand:</span> Print the QR pages from the Setup screen (one A4 per team) and place them on each table before the quiz starts.</li>
           <li style={{ marginBottom: 8 }}><span style={strong}>Player devices:</span> Players only need their phone — scan the QR code or enter the code and PIN manually. The interface is mobile-optimised.</li>
+          <li style={{ marginBottom: 8 }}><span style={strong}>Use Auto-score:</span> After players submit their answers, tap Auto-score to let fuzzy matching handle most scoring automatically. It handles typos, accents, and partial names. Review the results and override where needed.</li>
           <li style={{ marginBottom: 8 }}><span style={strong}>Mid-quiz break:</span> Close the session to lock answers, reopen when you resume.</li>
           <li style={{ marginBottom: 8 }}><span style={strong}>Multiple hosts:</span> Any device with the Host PIN can rejoin as host — but avoid two hosts scoring at the same time.</li>
         </ul>

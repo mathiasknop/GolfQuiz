@@ -74,6 +74,8 @@ app.http("session-create", {
         view: "setup",
         showAnswers: true,
         answers: {},
+        openRounds: [],
+        lastSeen: {},
         status: "open",
         updatedAt: new Date().toISOString(),
       };
@@ -99,6 +101,15 @@ app.http("session-get", {
       if (!resource) {
         return { status: 404, jsonBody: { error: "Session not found" } };
       }
+
+      // Player heartbeat: update lastSeen timestamp (fire-and-forget)
+      const t = new URL(request.url).searchParams.get("t");
+      if (t != null && !isNaN(Number(t))) {
+        sessions.item(code, code).patch([
+          { op: "set", path: `/lastSeen/${t}`, value: new Date().toISOString() },
+        ]).catch(() => {});
+      }
+
       return { jsonBody: { session: sanitizeSession(resource) } };
     } catch (err) {
       if (err.code === 404) {
@@ -217,6 +228,7 @@ app.http("session-save", {
         view: body.view,
         showAnswers: body.showAnswers,
         answers: existing?.answers || {},
+        openRounds: body.openRounds || existing?.openRounds || [],
         status: existing?.status || "open",
         updatedAt: new Date().toISOString(),
       };
@@ -286,7 +298,7 @@ app.http("session-answer", {
     const code = request.params.code.toUpperCase();
     try {
       const body = await request.json();
-      const { teamIdx, questionId, answer } = body;
+      const { teamIdx, questionId, answer, roundId } = body;
 
       if (typeof teamIdx !== "number" || teamIdx < 0) {
         return { status: 400, jsonBody: { error: "teamIdx must be a non-negative number" } };
@@ -306,6 +318,14 @@ app.http("session-answer", {
       }
       if (resource.status !== "open") {
         return { status: 403, jsonBody: { error: "Session is closed" } };
+      }
+
+      // Validate round is currently open for answering
+      const openRounds = resource.openRounds || [];
+      if (roundId && openRounds.length > 0) {
+        if (openRounds[openRounds.length - 1] !== roundId) {
+          return { status: 403, jsonBody: { error: "This round is not open for answers" } };
+        }
       }
 
       // Validate team PIN

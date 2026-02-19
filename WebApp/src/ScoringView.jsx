@@ -1,5 +1,37 @@
 import { C, LogoMark, SessionBadge, btnPrimary, btnAccent, btnGhost, thStyle, ansCell, tdStyle } from "./styles.jsx";
 
+function normalize(s) {
+  return s.toLowerCase().trim()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[''`]/g, "")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ").trim();
+}
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+  return dp[m][n];
+}
+
+function fuzzyMatch(playerAnswer, correctAnswer) {
+  const a = normalize(playerAnswer);
+  const b = normalize(correctAnswer);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.length >= 4 && b.includes(a)) return true;
+  if (b.length >= 4 && a.includes(b)) return true;
+  const dist = levenshtein(a, b);
+  const maxLen = Math.max(a.length, b.length);
+  return (1 - dist / maxLen) >= 0.7;
+}
+
 function ScoreButton({ value, onChange, disabled }) {
   const isCorrect = value === 1;
   const isWrong = value === 0;
@@ -19,9 +51,28 @@ function ScoreButton({ value, onChange, disabled }) {
   );
 }
 
-export default function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, onLeaveSession, roundsData, roundOrder, sessionCode, sessionStatus, onToggleStatus, answers }) {
+export default function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, onLeaveSession, roundsData, roundOrder, sessionCode, sessionStatus, onToggleStatus, answers, openRounds, setOpenRounds, lastSeen }) {
   const round = roundsData[activeRound];
   const isClosed = sessionStatus === "closed";
+  const currentOpenRound = openRounds.length > 0 ? openRounds[openRounds.length - 1] : null;
+  const nextRoundToOpen = roundOrder.find(rid => !openRounds.includes(rid)) || null;
+  const handleOpenNextRound = () => {
+    if (!nextRoundToOpen) return;
+    setOpenRounds(prev => [...prev, nextRoundToOpen]);
+    setActiveRound(nextRoundToOpen);
+  };
+  const handleAutoScore = () => {
+    if (!round || isClosed) return;
+    activeTeams.forEach((_, tIdx) => {
+      round.questions.forEach(q => {
+        const key = `${tIdx}-${q.id}`;
+        if (scores[key] !== undefined) return; // don't overwrite manual scores
+        const playerAnswer = answers?.[key];
+        if (!playerAnswer || !q.answer) return; // no answer to compare
+        setScore(tIdx, q.id, fuzzyMatch(playerAnswer, q.answer) ? 1 : 0);
+      });
+    });
+  };
   return (
     <div style={{ minHeight: "100vh", background: C.greenDeep, fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>
       {/* Top bar */}
@@ -52,15 +103,19 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
           {roundOrder.map(rid => {
             const r = roundsData[rid];
             const isActive = rid === activeRound;
+            const isOpen = openRounds.includes(rid);
+            const isCurrent = rid === currentOpenRound;
             const lbl = r.type === "series" ? `S${rid.slice(-1)}` : r.type === "varia" ? "Varia" : "Photo";
             return (
               <button key={rid} onClick={() => setActiveRound(rid)} style={{
                 padding: "6px 14px", borderRadius: 3, cursor: "pointer", fontSize: 11, fontWeight: isActive ? 600 : 400,
                 letterSpacing: 1.5, textTransform: "uppercase", transition: "all 0.15s",
-                background: isActive ? C.cream : "transparent", color: isActive ? C.greenDeep : C.sage,
-                border: isActive ? "none" : `1px solid ${C.borderLight}`,
+                background: isActive ? C.cream : "transparent",
+                color: isActive ? C.greenDeep : isCurrent ? C.correctBright : C.sage,
+                border: isActive ? "none" : isCurrent ? `1px solid ${C.correct}` : `1px solid ${C.borderLight}`,
                 fontFamily: "'Inter', sans-serif",
-              }}>{lbl}</button>
+                opacity: isOpen || isActive ? 1 : 0.45,
+              }}>{lbl}{isCurrent && !isActive ? " \u25CF" : ""}</button>
             );
           })}
         </div>
@@ -70,15 +125,43 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
       <div style={{ padding: "16px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 300, color: C.cream, letterSpacing: 3, textTransform: "uppercase" }}>{round.name}</h2>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: C.sage, letterSpacing: 1 }}>{round.subtitle} {"\u00B7"} {round.maxPts} pts</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
+            <span style={{ fontSize: 12, color: C.sage, letterSpacing: 1 }}>{round.subtitle} {"\u00B7"} {round.maxPts} pts</span>
+            {activeRound === currentOpenRound && (
+              <span style={{ fontSize: 10, color: C.correctBright, fontWeight: 600, letterSpacing: 1 }}>LIVE</span>
+            )}
+            {openRounds.includes(activeRound) && activeRound !== currentOpenRound && (
+              <span style={{ fontSize: 10, color: C.sage, letterSpacing: 1 }}>CLOSED</span>
+            )}
+            {!openRounds.includes(activeRound) && (
+              <span style={{ fontSize: 10, color: C.sageMuted, letterSpacing: 1 }}>NOT OPENED</span>
+            )}
+          </div>
         </div>
-        <button onClick={() => setShowAnswers(!showAnswers)} style={{
-          ...btnGhost, fontSize: 10,
-          color: showAnswers ? C.cream : C.sageDark,
-          borderColor: showAnswers ? C.borderMed : C.borderLight,
-        }}>
-          {showAnswers ? "Hide Answers" : "Show Answers"}
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {nextRoundToOpen && !isClosed && (
+            <button onClick={handleOpenNextRound} style={{
+              ...btnPrimary, fontSize: 10, padding: "8px 14px",
+              background: C.correct, color: C.creamBright,
+            }}>
+              {openRounds.length === 0 ? "Start Round" : "Next Round"}
+            </button>
+          )}
+          {!isClosed && (
+            <button onClick={handleAutoScore} style={{
+              ...btnGhost, fontSize: 10, color: C.gold, borderColor: C.gold,
+            }}>
+              Auto-score
+            </button>
+          )}
+          <button onClick={() => setShowAnswers(!showAnswers)} style={{
+            ...btnGhost, fontSize: 10,
+            color: showAnswers ? C.cream : C.sageDark,
+            borderColor: showAnswers ? C.borderMed : C.borderLight,
+          }}>
+            {showAnswers ? "Hide Answers" : "Show Answers"}
+          </button>
+        </div>
       </div>
 
       {/* Scoring table */}
@@ -106,9 +189,11 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
             {activeTeams.map((team, tIdx) => {
               const roundScore = getTeamRoundScore(tIdx, activeRound);
               const bg = tIdx % 2 === 0 ? C.greenDark : C.greenDeep;
+              const isOnline = lastSeen?.[tIdx] && (Date.now() - new Date(lastSeen[tIdx]).getTime()) < 15000;
               return (
                 <tr key={tIdx}>
                   <td style={{ ...tdStyle, position: "sticky", left: 0, zIndex: 5, background: bg, fontWeight: 500, color: C.cream, paddingLeft: 12, textAlign: "left" }}>
+                    <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: isOnline ? C.correct : C.sageMuted, marginRight: 6, verticalAlign: "middle" }} />
                     {team || `Team ${tIdx + 1}`}
                   </td>
                   {round.questions.map(q => {
@@ -118,7 +203,7 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
                       <td key={q.id} style={{ ...tdStyle, background: bg, padding: 3 }}>
                         <ScoreButton value={val} onChange={v => setScore(tIdx, q.id, v)} disabled={isClosed} />
                         {playerAnswer && (
-                          <div style={{ fontSize: 8, color: C.sage, marginTop: 2, maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }} title={playerAnswer}>
+                          <div style={{ fontSize: 10, color: C.cream, marginTop: 2, maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }} title={playerAnswer}>
                             {playerAnswer}
                           </div>
                         )}
