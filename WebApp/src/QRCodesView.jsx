@@ -12,9 +12,22 @@ export default function QRCodesView({ sessionCode, teams, teamCount, hostPin, on
     style.textContent = `
       @media print {
         .qr-no-print { display: none !important; }
-        .qr-overlay { position: static !important; overflow: visible !important; height: auto !important; }
-        body { background: white !important; margin: 0 !important; padding: 0 !important; }
-        .qr-page { page-break-after: always; break-after: page; height: 297mm !important; }
+        .qr-overlay {
+          position: absolute !important;
+          top: 0 !important; left: 0 !important;
+          width: 100% !important;
+          overflow: visible !important;
+          height: auto !important;
+          z-index: 99999 !important;
+          background: white !important;
+        }
+        body { margin: 0 !important; padding: 0 !important; }
+        .qr-page {
+          page-break-after: always; break-after: page;
+          height: 297mm !important; width: 210mm !important;
+          print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important;
+        }
+        .qr-page * { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
         .qr-page:last-child { page-break-after: avoid; break-after: avoid; }
       }
       @page { size: A4 portrait; margin: 0; }
