@@ -12,8 +12,9 @@ export default function QRCodesView({ sessionCode, teams, teamCount, hostPin, on
     style.textContent = `
       @media print {
         .qr-no-print { display: none !important; }
+        .qr-overlay { position: static !important; overflow: visible !important; height: auto !important; }
         body { background: white !important; margin: 0 !important; padding: 0 !important; }
-        .qr-page { page-break-after: always; break-after: page; }
+        .qr-page { page-break-after: always; break-after: page; height: 297mm !important; }
         .qr-page:last-child { page-break-after: avoid; break-after: avoid; }
       }
       @page { size: A4 portrait; margin: 0; }
@@ -66,7 +67,7 @@ export default function QRCodesView({ sessionCode, teams, teamCount, hostPin, on
   );
 
   return (
-    <div style={overlayStyle}>
+    <div className="qr-overlay" style={overlayStyle}>
       {/* Screen-only header */}
       <div className="qr-no-print" style={{ position: "sticky", top: 0, zIndex: 10, padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${C.border}`, background: C.greenDark }}>
         <button onClick={onClose} style={{ ...btnGhost, fontSize: 13 }}>{"\u2190"} Close</button>
