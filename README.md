@@ -20,10 +20,11 @@ Maximum total score: **67 points**
 1. Create a session via the admin panel (`/admin`) — generates a session code (`GQ-XXXX`) and a 4-digit Host PIN
 2. Set up teams (names, count) on the Setup screen
 3. Print QR codes — one branded A4 page per team with QR code, session code, and Team PIN
-4. Open rounds one at a time — tap **Start Round** / **Next Round** to control which round players can answer
-5. Score answers — tap correct/wrong per team, or use **Auto-score** for fuzzy matching (handles typos, accents, partial names)
-6. Monitor team status — green dots show which teams have active players online
-7. Reveal the leaderboard at the end (one team at a time, or all at once)
+4. Open rounds in any order — navigate to a round tab and tap **Open Round**; a per-round timer starts automatically
+5. Close rounds independently — tap **Close Round** to lock answers (e.g. to show PowerPoint answer slides) without opening the next round; tap **Reopen** if closed by mistake
+6. Score answers — tap correct/wrong per team, or use **Auto-score** for fuzzy matching (handles typos, accents, partial names)
+7. Monitor team status — green dots show which teams have active players online
+8. Reveal the leaderboard at the end (one team at a time, or all at once)
 
 ### Player Flow
 1. Scan the QR code on the table (auto-joins) or enter the session code + Team PIN manually
@@ -78,5 +79,5 @@ The API runs locally via Azure Static Web Apps CLI or Azure Functions Core Tools
 - **Host PIN** — 4-digit PIN required to join as host or save session data
 - **Team PINs** — 4-digit PIN per team, required to submit answers
 - **Admin Key** — protects admin panel operations (session listing, PIN resets)
-- **Round validation** — server rejects answers for rounds that aren't currently open
+- **Round validation** — server rejects answers for rounds that aren't currently open or are explicitly closed
 - All PINs are stripped from public API responses

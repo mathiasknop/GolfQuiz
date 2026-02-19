@@ -56,7 +56,8 @@ export default function GuideView({ onBack }) {
           <p>Tap <span style={strong}>Print QR Codes</span> on the Setup screen. Each team gets a full <span style={strong}>A4 page</span> with the club branding, team name, QR code, and join instructions. Print and place one page on each table before the quiz starts.</p>
 
           <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>4. Control the Rounds</p>
-          <p>The host controls which round is open for answers. Tap <span style={strong}>Start Round</span> to open the first round. When you're ready, tap <span style={strong}>Next Round</span> to close the current round and open the next one. Players can only submit answers for the current round — previous rounds become read-only with correct answers shown.</p>
+          <p>The host controls which round is open for answers. Navigate to any round tab and tap <span style={strong}>Open Round</span> to start it — rounds can be opened in any order. A per-round <span style={strong}>timer</span> starts automatically when you open a round.</p>
+          <p>Tap <span style={{ color: C.gold, fontWeight: 600 }}>Close Round</span> to lock answers without opening the next round — useful when you want to show answer slides in your presentation first. Tap <span style={strong}>Next Round</span> when you're ready to move on, or <span style={strong}>Reopen</span> if you closed by mistake (the timer resumes from where it stopped).</p>
           <p>A <span style={{ color: C.correctBright }}>green dot</span> next to each team name shows which teams have an active player connected. A <span style={{ color: C.sageMuted }}>gray dot</span> means no player has been seen in the last 15 seconds.</p>
 
           <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>5. Score the Quiz</p>
@@ -65,12 +66,15 @@ export default function GuideView({ onBack }) {
             <table style={table}>
               <thead><tr><th style={th}>Button</th><th style={th}>What it does</th></tr></thead>
               <tbody>
-                <tr><td style={td}><span style={{ color: C.gold, fontWeight: 600 }}>Auto-score</span></td><td style={td}>Automatically scores all unanswered questions using fuzzy matching (handles typos, partial names, accents). You can override any auto-scored result.</td></tr>
+                <tr><td style={td}><span style={strong}>Open Round</span></td><td style={td}>Open the currently viewed round for player answers (works on any round)</td></tr>
+                <tr><td style={td}><span style={{ color: C.gold, fontWeight: 600 }}>Close Round</span></td><td style={td}>Lock answers for the current round without opening the next one</td></tr>
+                <tr><td style={td}><span style={strong}>Reopen</span></td><td style={td}>Undo a round close — timer resumes from where it stopped</td></tr>
+                <tr><td style={td}><span style={strong}>Next Round</span></td><td style={td}>Close the current round and open the next sequential round</td></tr>
+                <tr><td style={td}><span style={{ color: C.gold, fontWeight: 600 }}>Auto-score</span></td><td style={td}>Automatically scores unanswered questions using fuzzy matching (typos, partial names, accents). Override any result.</td></tr>
                 <tr><td style={td}><span style={strong}>Show / Hide Answers</span></td><td style={td}>Toggle a row showing the correct answer per question</td></tr>
-                <tr><td style={td}><span style={strong}>Start Round / Next Round</span></td><td style={td}>Open the first or next round for player answers</td></tr>
                 <tr><td style={td}><span style={strong}>Setup</span></td><td style={td}>Go back to edit teams</td></tr>
                 <tr><td style={td}><span style={strong}>Leaderboard</span></td><td style={td}>Open the leaderboard reveal</td></tr>
-                <tr><td style={td}><span style={strong}>Close / Reopen</span></td><td style={td}>Lock or unlock the session</td></tr>
+                <tr><td style={td}><span style={strong}>Close / Reopen</span></td><td style={td}>Lock or unlock the entire session</td></tr>
               </tbody>
             </table>
           </div>
@@ -177,6 +181,7 @@ export default function GuideView({ onBack }) {
           <li style={{ marginBottom: 8 }}><span style={strong}>Print QR codes beforehand:</span> Print the QR pages from the Setup screen (one A4 per team) and place them on each table before the quiz starts.</li>
           <li style={{ marginBottom: 8 }}><span style={strong}>Player devices:</span> Players only need their phone — scan the QR code or enter the code and PIN manually. The interface is mobile-optimised.</li>
           <li style={{ marginBottom: 8 }}><span style={strong}>Use Auto-score:</span> After players submit their answers, tap Auto-score to let fuzzy matching handle most scoring automatically. It handles typos, accents, and partial names. Review the results and override where needed.</li>
+          <li style={{ marginBottom: 8 }}><span style={strong}>Close Round for answer slides:</span> Close the round to lock answers, show your PowerPoint answer slides, then open the next round when ready. The per-round timer tracks how long each round takes.</li>
           <li style={{ marginBottom: 8 }}><span style={strong}>Mid-quiz break:</span> Close the session to lock answers, reopen when you resume.</li>
           <li style={{ marginBottom: 8 }}><span style={strong}>Multiple hosts:</span> Any device with the Host PIN can rejoin as host — but avoid two hosts scoring at the same time.</li>
         </ul>

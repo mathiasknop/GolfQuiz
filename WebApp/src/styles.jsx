@@ -106,7 +106,7 @@ const labelStyle = {
 const btnPrimary = {
   padding: "13px 24px", background: C.cream, color: C.greenDeep, border: "none", borderRadius: 3,
   fontSize: 11, fontWeight: 600, letterSpacing: 3, textTransform: "uppercase", cursor: "pointer",
-  fontFamily: "'Inter', sans-serif", transition: "all 0.15s",
+  fontFamily: "'Inter', sans-serif", transition: "background 0.15s, opacity 0.15s",
 };
 
 const btnAccent = {

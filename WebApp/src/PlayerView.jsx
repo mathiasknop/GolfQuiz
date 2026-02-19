@@ -11,6 +11,7 @@ export default function PlayerView({
   answers,
   sessionStatus,
   openRounds,
+  roundClosed,
   onLeave,
 }) {
   const [localAnswers, setLocalAnswers] = useState({});
@@ -18,8 +19,8 @@ export default function PlayerView({
   const visibleRounds = roundOrder ? roundOrder.filter(rid => (openRounds || []).includes(rid)) : [];
   const currentRound = openRounds && openRounds.length > 0 ? openRounds[openRounds.length - 1] : null;
   const [selectedTab, setSelectedTab] = useState(currentRound || activeRound || (roundOrder && roundOrder[0]) || null);
-  const isRoundAnswerable = (rid) => rid === currentRound && sessionStatus === "open";
-  const isRoundClosed = (rid) => (openRounds || []).includes(rid) && rid !== currentRound;
+  const isRoundAnswerable = (rid) => rid === currentRound && sessionStatus === "open" && !roundClosed;
+  const isRoundClosed = (rid) => (openRounds || []).includes(rid) && (rid !== currentRound || roundClosed);
 
   // Merge server answers into local state (only this team's answers)
   useEffect(() => {

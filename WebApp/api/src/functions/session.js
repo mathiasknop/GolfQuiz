@@ -75,6 +75,8 @@ app.http("session-create", {
         showAnswers: true,
         answers: {},
         openRounds: [],
+        roundClosed: false,
+        roundTimers: {},
         lastSeen: {},
         status: "open",
         updatedAt: new Date().toISOString(),
@@ -229,6 +231,9 @@ app.http("session-save", {
         showAnswers: body.showAnswers,
         answers: existing?.answers || {},
         openRounds: body.openRounds || existing?.openRounds || [],
+        roundClosed: body.roundClosed ?? existing?.roundClosed ?? false,
+        roundTimers: body.roundTimers || existing?.roundTimers || {},
+        lastSeen: existing?.lastSeen || {},
         status: existing?.status || "open",
         updatedAt: new Date().toISOString(),
       };
@@ -321,6 +326,9 @@ app.http("session-answer", {
       }
 
       // Validate round is currently open for answering
+      if (resource.roundClosed) {
+        return { status: 403, jsonBody: { error: "The current round is closed for answers" } };
+      }
       const openRounds = resource.openRounds || [];
       if (roundId && openRounds.length > 0) {
         if (openRounds[openRounds.length - 1] !== roundId) {

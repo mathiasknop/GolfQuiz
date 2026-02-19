@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { C, LogoMark, SessionBadge, btnPrimary, btnAccent, btnGhost, thStyle, ansCell, tdStyle } from "./styles.jsx";
 
 function normalize(s) {
@@ -32,6 +33,14 @@ function fuzzyMatch(playerAnswer, correctAnswer) {
   return (1 - dist / maxLen) >= 0.7;
 }
 
+function formatElapsed(ms) {
+  if (ms == null || ms < 0) return "0:00";
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}:${sec.toString().padStart(2, "0")}`;
+}
+
 function ScoreButton({ value, onChange, disabled }) {
   const isCorrect = value === 1;
   const isWrong = value === 0;
@@ -40,27 +49,73 @@ function ScoreButton({ value, onChange, disabled }) {
       <button onClick={() => !disabled && onChange(1)} style={{
         width: 30, height: 30, borderRadius: 3, border: "none", cursor: disabled ? "default" : "pointer", fontSize: 13, fontWeight: 700,
         background: isCorrect ? C.correct : C.greenMid, color: isCorrect ? C.creamBright : C.sageMuted,
-        transition: "all 0.12s", fontFamily: "'Inter', sans-serif", opacity: disabled && !isCorrect ? 0.5 : 1,
+        transition: "background 0.12s, opacity 0.12s", fontFamily: "'Inter', sans-serif", opacity: disabled && !isCorrect ? 0.5 : 1,
       }}>{"\u2713"}</button>
       <button onClick={() => !disabled && onChange(0)} style={{
         width: 30, height: 30, borderRadius: 3, border: "none", cursor: disabled ? "default" : "pointer", fontSize: 13, fontWeight: 700,
         background: isWrong ? C.wrong : C.greenMid, color: isWrong ? C.creamBright : C.sageMuted,
-        transition: "all 0.12s", fontFamily: "'Inter', sans-serif", opacity: disabled && !isWrong ? 0.5 : 1,
+        transition: "background 0.12s, opacity 0.12s", fontFamily: "'Inter', sans-serif", opacity: disabled && !isWrong ? 0.5 : 1,
       }}>{"\u2717"}</button>
     </div>
   );
 }
 
-export default function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, onLeaveSession, roundsData, roundOrder, sessionCode, sessionStatus, onToggleStatus, answers, openRounds, setOpenRounds, lastSeen }) {
+export default function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, onLeaveSession, roundsData, roundOrder, sessionCode, sessionStatus, onToggleStatus, answers, openRounds, setOpenRounds, roundClosed, setRoundClosed, roundTimers, setRoundTimers, lastSeen }) {
   const round = roundsData[activeRound];
   const isClosed = sessionStatus === "closed";
   const currentOpenRound = openRounds.length > 0 ? openRounds[openRounds.length - 1] : null;
   const nextRoundToOpen = roundOrder.find(rid => !openRounds.includes(rid)) || null;
-  const handleOpenNextRound = () => {
-    if (!nextRoundToOpen) return;
-    setOpenRounds(prev => [...prev, nextRoundToOpen]);
-    setActiveRound(nextRoundToOpen);
+  const isLive = currentOpenRound && !roundClosed;
+
+  // Timer: ticks every second while a round is live
+  const [elapsed, setElapsed] = useState(null);
+  useEffect(() => {
+    const timer = roundTimers?.[activeRound];
+    if (!timer?.start) { setElapsed(null); return; }
+    if (timer.end) {
+      setElapsed(new Date(timer.end).getTime() - new Date(timer.start).getTime());
+      return;
+    }
+    const tick = () => setElapsed(Date.now() - new Date(timer.start).getTime());
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [activeRound, roundTimers]);
+
+  const handleOpenRound = (roundId) => {
+    if (!roundId || openRounds.includes(roundId)) return;
+    const now = new Date().toISOString();
+    // End timer for current round if it was live
+    if (currentOpenRound && !roundTimers?.[currentOpenRound]?.end) {
+      setRoundTimers(prev => ({ ...prev, [currentOpenRound]: { ...prev[currentOpenRound], end: now } }));
+    }
+    // Start timer for new round
+    setRoundTimers(prev => ({ ...prev, [roundId]: { start: now } }));
+    setOpenRounds(prev => [...prev, roundId]);
+    setRoundClosed(false);
+    setActiveRound(roundId);
   };
+
+  const handleCloseRound = () => {
+    if (!currentOpenRound || roundClosed) return;
+    const now = new Date().toISOString();
+    setRoundTimers(prev => ({ ...prev, [currentOpenRound]: { ...prev[currentOpenRound], end: now } }));
+    setRoundClosed(true);
+  };
+
+  const handleReopenRound = () => {
+    if (!currentOpenRound || !roundClosed) return;
+    // Shift start forward by paused duration so timer resumes from where it stopped
+    setRoundTimers(prev => {
+      const timer = prev[currentOpenRound];
+      if (!timer?.start || !timer?.end) return { ...prev, [currentOpenRound]: { start: timer?.start } };
+      const pausedMs = Date.now() - new Date(timer.end).getTime();
+      const adjustedStart = new Date(new Date(timer.start).getTime() + pausedMs).toISOString();
+      return { ...prev, [currentOpenRound]: { start: adjustedStart } };
+    });
+    setRoundClosed(false);
+  };
+
   const handleAutoScore = () => {
     if (!round || isClosed) return;
     activeTeams.forEach((_, tIdx) => {
@@ -109,13 +164,13 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
             return (
               <button key={rid} onClick={() => setActiveRound(rid)} style={{
                 padding: "6px 14px", borderRadius: 3, cursor: "pointer", fontSize: 11, fontWeight: isActive ? 600 : 400,
-                letterSpacing: 1.5, textTransform: "uppercase", transition: "all 0.15s",
+                letterSpacing: 1.5, textTransform: "uppercase", transition: "background 0.15s, opacity 0.15s",
                 background: isActive ? C.cream : "transparent",
-                color: isActive ? C.greenDeep : isCurrent ? C.correctBright : C.sage,
-                border: isActive ? "none" : isCurrent ? `1px solid ${C.correct}` : `1px solid ${C.borderLight}`,
+                color: isActive ? C.greenDeep : (isCurrent && !roundClosed) ? C.correctBright : C.sage,
+                border: isActive ? "none" : (isCurrent && !roundClosed) ? `1px solid ${C.correct}` : isCurrent && roundClosed ? `1px solid ${C.gold}` : `1px solid ${C.borderLight}`,
                 fontFamily: "'Inter', sans-serif",
                 opacity: isOpen || isActive ? 1 : 0.45,
-              }}>{lbl}{isCurrent && !isActive ? " \u25CF" : ""}</button>
+              }}>{lbl}{isCurrent && !isActive && !roundClosed ? " \u25CF" : ""}</button>
             );
           })}
         </div>
@@ -127,8 +182,11 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 300, color: C.cream, letterSpacing: 3, textTransform: "uppercase" }}>{round.name}</h2>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
             <span style={{ fontSize: 12, color: C.sage, letterSpacing: 1 }}>{round.subtitle} {"\u00B7"} {round.maxPts} pts</span>
-            {activeRound === currentOpenRound && (
+            {activeRound === currentOpenRound && !roundClosed && (
               <span style={{ fontSize: 10, color: C.correctBright, fontWeight: 600, letterSpacing: 1 }}>LIVE</span>
+            )}
+            {activeRound === currentOpenRound && roundClosed && (
+              <span style={{ fontSize: 10, color: C.gold, fontWeight: 600, letterSpacing: 1 }}>CLOSED</span>
             )}
             {openRounds.includes(activeRound) && activeRound !== currentOpenRound && (
               <span style={{ fontSize: 10, color: C.sage, letterSpacing: 1 }}>CLOSED</span>
@@ -136,15 +194,46 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
             {!openRounds.includes(activeRound) && (
               <span style={{ fontSize: 10, color: C.sageMuted, letterSpacing: 1 }}>NOT OPENED</span>
             )}
+            {elapsed != null && (
+              <span style={{ fontSize: 11, color: (activeRound === currentOpenRound && !roundClosed) ? C.correctBright : C.sage, fontFamily: "monospace", fontWeight: 600, letterSpacing: 1 }}>
+                {formatElapsed(elapsed)}
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {nextRoundToOpen && !isClosed && (
-            <button onClick={handleOpenNextRound} style={{
+          {/* Open this round (visible on any unopened round) */}
+          {!openRounds.includes(activeRound) && !isClosed && (
+            <button onClick={() => handleOpenRound(activeRound)} style={{
               ...btnPrimary, fontSize: 10, padding: "8px 14px",
               background: C.correct, color: C.creamBright,
             }}>
-              {openRounds.length === 0 ? "Start Round" : "Next Round"}
+              Open Round
+            </button>
+          )}
+          {/* Close current round (visible when a round is live) */}
+          {isLive && !isClosed && (
+            <button onClick={handleCloseRound} style={{
+              ...btnGhost, fontSize: 10, color: C.gold, borderColor: C.gold,
+            }}>
+              Close Round
+            </button>
+          )}
+          {/* Reopen current round (visible when viewing the just-closed round) */}
+          {activeRound === currentOpenRound && roundClosed && !isClosed && (
+            <button onClick={handleReopenRound} style={{
+              ...btnGhost, fontSize: 10,
+            }}>
+              Reopen
+            </button>
+          )}
+          {/* Next round shortcut (visible on current closed round when there's a next sequential round) */}
+          {activeRound === currentOpenRound && roundClosed && nextRoundToOpen && !isClosed && (
+            <button onClick={() => handleOpenRound(nextRoundToOpen)} style={{
+              ...btnPrimary, fontSize: 10, padding: "8px 14px",
+              background: C.correct, color: C.creamBright,
+            }}>
+              Next Round
             </button>
           )}
           {!isClosed && (
