@@ -1,6 +1,6 @@
-import { C, HERO_BG, LogoMark, SessionBadge, btnAccent, btnGhost } from "./styles.jsx";
+import { C, HERO_BG, LogoMark, SessionBadge, btnAccent, btnPrimary, btnGhost } from "./styles.jsx";
 
-export default function LeaderboardView({ leaderboard, onBack, revealed, setRevealed, revealCount, setRevealCount, roundsData, roundOrder, sessionCode }) {
+export default function LeaderboardView({ leaderboard, onBack, revealed, setRevealed, revealCount, setRevealCount, roundsData, roundOrder, sessionCode, onNextRound }) {
   const maxTotal = roundOrder.reduce((sum, rid) => sum + (roundsData[rid]?.maxPts || 0), 0);
   const totalTeams = leaderboard.length;
 
@@ -30,6 +30,11 @@ export default function LeaderboardView({ leaderboard, onBack, revealed, setReve
                 <button onClick={handleRevealNext} style={btnAccent}>Reveal #{totalTeams - revealCount}</button>
                 <button onClick={handleRevealAll} style={btnGhost}>Show All</button>
               </>
+            )}
+            {onNextRound && (
+              <button onClick={onNextRound} style={{ ...btnPrimary, fontSize: 11, padding: "8px 14px", background: C.correct, color: C.creamBright }}>
+                Next Round
+              </button>
             )}
           </div>
         </div>
@@ -74,6 +79,11 @@ export default function LeaderboardView({ leaderboard, onBack, revealed, setReve
                     <div style={{ fontWeight: 500, fontSize: 14, color: C.cream, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: 0.5 }}>
                       {team.name}
                     </div>
+                    {team.players && (
+                      <div style={{ fontSize: 11, color: C.sage, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {team.players}
+                      </div>
+                    )}
                     <div style={{ marginTop: 6, height: 4, background: C.greenMid, borderRadius: 2, overflow: "hidden" }}>
                       <div style={{
                         width: `${barWidth}%`, height: "100%", borderRadius: 2,

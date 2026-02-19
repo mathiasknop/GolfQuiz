@@ -30,6 +30,7 @@ function App() {
   const [roundClosed, setRoundClosed] = useState(false);
   const [roundTimers, setRoundTimers] = useState({});
   const [lastSeen, setLastSeen] = useState({});
+  const [teamPlayers, setTeamPlayers] = useState({});
   const [revealCount, setRevealCount] = useState(0);
   const [revealed, setRevealed] = useState(false);
 
@@ -63,6 +64,7 @@ function App() {
     setRoundClosed(session.roundClosed ?? false);
     setRoundTimers(session.roundTimers || {});
     setLastSeen(session.lastSeen || {});
+    setTeamPlayers(session.teamPlayers || {});
     // Restore role from localStorage
     const savedRole = localStorage.getItem(ROLE_KEY);
     const savedTeamIdx = localStorage.getItem(TEAM_IDX_KEY);
@@ -134,11 +136,11 @@ function App() {
       fetch(`/api/session/${sessionCode}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "x-host-pin": pin },
-        body: JSON.stringify({ teams, teamCount, scores, activeRound, view, showAnswers, openRounds, roundClosed, roundTimers }),
+        body: JSON.stringify({ teams, teamCount, scores, activeRound, view, showAnswers, openRounds, roundClosed, roundTimers, teamPlayers }),
       }).catch(() => {}).finally(() => { saveTimer.current = null; });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [teams, teamCount, scores, activeRound, view, showAnswers, openRounds, roundClosed, roundTimers, sessionCode, sessionStatus, role]);
+  }, [teams, teamCount, scores, activeRound, view, showAnswers, openRounds, roundClosed, roundTimers, teamPlayers, sessionCode, sessionStatus, role]);
 
   // Poll for remote changes every 3s (real-time sync across devices)
   useEffect(() => {
@@ -164,6 +166,7 @@ function App() {
           setRoundClosed(prev => { const next = s.roundClosed ?? false; return next !== prev ? next : prev; });
           setRoundTimers(prev => { const next = s.roundTimers || {}; return JSON.stringify(prev) === JSON.stringify(next) ? prev : next; });
           setLastSeen(prev => { const next = s.lastSeen || {}; return JSON.stringify(prev) === JSON.stringify(next) ? prev : next; });
+          setTeamPlayers(prev => { const next = s.teamPlayers || {}; return JSON.stringify(prev) === JSON.stringify(next) ? prev : next; });
         })
         .catch(() => {});
     }, 3000);
@@ -250,6 +253,7 @@ function App() {
     setRoundClosed(false);
     setRoundTimers({});
     setLastSeen({});
+    setTeamPlayers({});
     setRevealCount(0);
     setRevealed(false);
     setRole("host");
@@ -270,6 +274,23 @@ function App() {
       .then(r => { if (!r.ok) throw new Error("Failed to update status"); return r.json(); })
       .then(() => { setSessionStatus(newStatus); });
   }, [sessionCode, sessionStatus]);
+
+  const handleOpenNextRound = useCallback(() => {
+    const nextRound = roundOrder.find(rid => !openRounds.includes(rid));
+    if (!nextRound) return;
+    const now = new Date().toISOString();
+    const currentOpenRound = openRounds.length > 0 ? openRounds[openRounds.length - 1] : null;
+    // End timer for current round if it was live
+    if (currentOpenRound && !roundTimers?.[currentOpenRound]?.end) {
+      setRoundTimers(prev => ({ ...prev, [currentOpenRound]: { ...prev[currentOpenRound], end: now } }));
+    }
+    // Start timer for new round
+    setRoundTimers(prev => ({ ...prev, [nextRound]: { start: now } }));
+    setOpenRounds(prev => [...prev, nextRound]);
+    setRoundClosed(false);
+    setActiveRound(nextRound);
+    setView("scoring");
+  }, [roundOrder, openRounds, roundTimers]);
 
   const activeTeams = useMemo(() => teams.slice(0, teamCount), [teams, teamCount]);
 
@@ -294,13 +315,14 @@ function App() {
   const leaderboard = useMemo(() => {
     const data = activeTeams.map((name, idx) => ({
       name, idx, total: getTeamTotal(idx),
+      players: teamPlayers[String(idx)] || "",
       rounds: roundOrder.reduce((a, rid) => { a[rid] = getTeamRoundScore(idx, rid); return a; }, {}),
     }));
     data.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
     let rank = 1;
     data.forEach((item, i) => { if (i > 0 && item.total < data[i - 1].total) rank = i + 1; item.rank = rank; });
     return data;
-  }, [activeTeams, getTeamTotal, getTeamRoundScore, roundOrder]);
+  }, [activeTeams, getTeamTotal, getTeamRoundScore, roundOrder, teamPlayers]);
 
   const handleRoundsChanged = useCallback((newRoundsData, newRoundOrder) => {
     setRoundsData(newRoundsData);
@@ -399,8 +421,8 @@ function App() {
   if (view === "sessions") return <SessionsOverview adminKey={adminKey} onBack={() => setView("lobby")} onJoinSession={handleJoinSession} />;
   if (view === "manage") return <ManageView adminKey={adminKey} roundsData={roundsData} roundOrder={roundOrder} onBack={() => setView("lobby")} onRoundsChanged={handleRoundsChanged} />;
   if (view === "guide") return <GuideView onBack={() => setView("lobby")} />;
-  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} hasScores={Object.keys(scores).length > 0} hostPin={hostPin} roundsData={roundsData} roundOrder={roundOrder} />;
-  if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode} />;
+  if (view === "setup") return <SetupView teams={teams} setTeams={setTeams} teamCount={teamCount} setTeamCount={setTeamCount} teamPlayers={teamPlayers} setTeamPlayers={setTeamPlayers} onStart={() => setView("scoring")} onLeaveSession={handleLeaveSession} sessionCode={sessionCode} readOnly={sessionStatus === "closed"} hasScores={Object.keys(scores).length > 0} hostPin={hostPin} roundsData={roundsData} roundOrder={roundOrder} />;
+  if (view === "leaderboard") return <LeaderboardView leaderboard={leaderboard} onBack={() => setView("scoring")} revealed={revealed} setRevealed={setRevealed} revealCount={revealCount} setRevealCount={setRevealCount} roundsData={roundsData} roundOrder={roundOrder} sessionCode={sessionCode} onNextRound={roundOrder.find(rid => !openRounds.includes(rid)) ? handleOpenNextRound : null} />;
   return (
     <ScoringView
       activeRound={activeRound} setActiveRound={setActiveRound} activeTeams={activeTeams}

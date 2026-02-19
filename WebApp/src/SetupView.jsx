@@ -3,7 +3,7 @@ import { C, HERO_BG, LogoMark, CopyButton, SessionBadge, labelStyle, btnPrimary,
 import QRCodesView from "./QRCodesView.jsx";
 import AnswerSheetsView from "./AnswerSheetsView.jsx";
 
-export default function SetupView({ teams, setTeams, teamCount, setTeamCount, onStart, onLeaveSession, sessionCode, readOnly, hasScores, hostPin, roundsData, roundOrder }) {
+export default function SetupView({ teams, setTeams, teamCount, setTeamCount, teamPlayers, setTeamPlayers, onStart, onLeaveSession, sessionCode, readOnly, hasScores, hostPin, roundsData, roundOrder }) {
   const [showQR, setShowQR] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [showAnswerSheets, setShowAnswerSheets] = useState(false);
@@ -54,19 +54,32 @@ export default function SetupView({ teams, setTeams, teamCount, setTeamCount, on
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <label style={labelStyle}>Team names</label>
-            <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4, marginTop: 8, paddingRight: 4 }}>
+            <label style={labelStyle}>Teams & players</label>
+            <div style={{ maxHeight: 400, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginTop: 8, paddingRight: 4 }}>
               {Array.from({ length: teamCount }, (_, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 22, textAlign: "right", fontSize: 11, color: C.sageDark, fontWeight: 500, flexShrink: 0 }}>{i + 1}</span>
-                  <input
-                    value={teams[i] || ""} placeholder={`Team ${i + 1}`}
-                    onChange={e => { const n = [...teams]; while (n.length <= i) n.push(""); n[i] = e.target.value; setTeams(n); }}
-                    disabled={readOnly}
-                    style={{ flex: 1, padding: "9px 12px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 13, background: C.greenDeep, color: C.cream, outline: "none", fontFamily: "'Inter', sans-serif" }}
-                    onFocus={e => e.target.style.borderColor = C.greenSoft}
-                    onBlur={e => e.target.style.borderColor = C.border}
-                  />
+                <div key={i}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ width: 22, textAlign: "right", fontSize: 11, color: C.sageDark, fontWeight: 500, flexShrink: 0 }}>{i + 1}</span>
+                    <input
+                      value={teams[i] || ""} placeholder={`Team ${i + 1}`}
+                      onChange={e => { const n = [...teams]; while (n.length <= i) n.push(""); n[i] = e.target.value; setTeams(n); }}
+                      disabled={readOnly}
+                      style={{ flex: 1, padding: "9px 12px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 13, background: C.greenDeep, color: C.cream, outline: "none", fontFamily: "'Inter', sans-serif" }}
+                      onFocus={e => e.target.style.borderColor = C.greenSoft}
+                      onBlur={e => e.target.style.borderColor = C.border}
+                    />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+                    <span style={{ width: 22, flexShrink: 0 }} />
+                    <input
+                      value={teamPlayers[String(i)] || ""} placeholder="Players (comma-separated)"
+                      onChange={e => setTeamPlayers(prev => ({ ...prev, [String(i)]: e.target.value }))}
+                      disabled={readOnly}
+                      style={{ flex: 1, padding: "6px 12px", border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 11, background: C.greenDeep, color: C.sage, outline: "none", fontFamily: "'Inter', sans-serif", fontStyle: "italic" }}
+                      onFocus={e => e.target.style.borderColor = C.greenSoft}
+                      onBlur={e => e.target.style.borderColor = C.border}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -78,7 +91,7 @@ export default function SetupView({ teams, setTeams, teamCount, setTeamCount, on
           <button onClick={onLeaveSession} style={{ ...btnGhost, width: "100%", marginTop: 8, fontSize: 12 }}>Leave Session</button>
         </div>
       </div>
-      {showQR && <QRCodesView sessionCode={sessionCode} teams={teams} teamCount={teamCount} hostPin={hostPin} onClose={() => setShowQR(false)} />}
+      {showQR && <QRCodesView sessionCode={sessionCode} teams={teams} teamCount={teamCount} hostPin={hostPin} teamPlayers={teamPlayers} onClose={() => setShowQR(false)} />}
       {showAnswerSheets && <AnswerSheetsView roundsData={roundsData} roundOrder={roundOrder} teams={teams} teamCount={teamCount} sessionCode={sessionCode} onClose={() => setShowAnswerSheets(false)} />}
     </div>
   );

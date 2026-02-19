@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import QRCode from "qrcode";
 import { C, HERO_BG, LOGO_DATA_URI, btnPrimary, btnGhost } from "./styles.jsx";
 
-export default function QRCodesView({ sessionCode, teams, teamCount, hostPin, onClose }) {
+export default function QRCodesView({ sessionCode, teams, teamCount, hostPin, teamPlayers, onClose }) {
   const [qrCodes, setQrCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -108,9 +108,15 @@ export default function QRCodesView({ sessionCode, teams, teamCount, hostPin, on
             </div>
 
             {/* Team name */}
-            <h1 style={{ fontFamily: "'Inter',sans-serif", fontWeight: 700, fontSize: 42, color: C.cream, textAlign: "center", margin: "0 0 40px", letterSpacing: 2, textTransform: "uppercase" }}>
+            <h1 style={{ fontFamily: "'Inter',sans-serif", fontWeight: 700, fontSize: 42, color: C.cream, textAlign: "center", margin: 0, letterSpacing: 2, textTransform: "uppercase" }}>
               {qr.teamName}
             </h1>
+            {teamPlayers?.[String(qr.teamIdx)] && (
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 16, color: C.sage, textAlign: "center", marginTop: 10, lineHeight: 1.6 }}>
+                {teamPlayers[String(qr.teamIdx)]}
+              </div>
+            )}
+            <div style={{ marginBottom: 32 }} />
 
             {/* QR code in white card */}
             <div style={{ background: "#fff", borderRadius: 12, padding: 24, display: "flex", flexDirection: "column", alignItems: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>

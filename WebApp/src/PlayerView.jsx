@@ -189,9 +189,11 @@ export default function PlayerView({
       {/* Question cards */}
       <div style={{ padding: "12px 12px 80px 12px" }}>
         {!selectedTab || !visibleRounds.includes(selectedTab) ? (
-          <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>
-            Waiting for the host to start the quiz...
-          </div>
+          visibleRounds.length > 0 ? (
+            <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>
+              Select a round above.
+            </div>
+          ) : null
         ) : round && round.questions && round.questions.length > 0 ? (
           round.questions.map((q) => {
             const serverAnswer = answers ? answers[`${teamIdx}-${q.id}`] : undefined;
