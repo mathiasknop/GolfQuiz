@@ -154,6 +154,10 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
           <div style={{ textAlign: "center", marginTop: 8 }}>
             <button onClick={onGuide} style={{ ...btnGhost, fontSize: 11, letterSpacing: 2 }}>Help &amp; Guide</button>
           </div>
+
+          <div style={{ textAlign: "center", marginTop: 32, fontFamily: "'Inter', sans-serif", fontSize: 10, color: C.sageMuted, lineHeight: 1.6, letterSpacing: 0.5 }}>
+            Quiz by Erwin Deseyn &middot; App by Mathias Knop
+          </div>
         </div>
       </div>
     </div>

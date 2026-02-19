@@ -35,6 +35,10 @@ export default function AdminLobbyView({ onNewSession, onViewSessions, onManageQ
             <button onClick={onManageQuiz} style={{ ...btnGhost, width: "100%", fontSize: 13, letterSpacing: 2, padding: "12px 16px" }}>Manage Quiz</button>
             <button onClick={onGuide} style={{ ...btnGhost, width: "100%", fontSize: 13, letterSpacing: 2, padding: "12px 16px" }}>Help &amp; Guide</button>
           </div>
+
+          <div style={{ textAlign: "center", marginTop: 32, fontFamily: "'Inter', sans-serif", fontSize: 10, color: C.sageMuted, lineHeight: 1.6, letterSpacing: 0.5 }}>
+            Quiz by Erwin Deseyn &middot; App by Mathias Knop
+          </div>
         </div>
       </div>
     </div>

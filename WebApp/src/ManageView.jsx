@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { C, HERO_BG, LogoMark, labelStyle, btnPrimary, btnAccent, btnGhost } from "./styles.jsx";
 
 const overlay = {
@@ -65,6 +65,7 @@ export default function ManageView({ adminKey, roundsData, roundOrder, onBack, o
   const [draftRound, setDraftRound] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const editorRef = useRef(null);
 
   function authHeaders() {
     return { "Content-Type": "application/json", "x-admin-key": adminKey };
@@ -73,13 +74,17 @@ export default function ManageView({ adminKey, roundsData, roundOrder, onBack, o
   const orderedRounds = (roundOrder || []).map((id) => ({ id, ...(roundsData || {})[id] })).filter((r) => r.name);
 
   /* ---- helpers ---- */
-  function selectRound(id) {
-    if (id === selectedRoundId) return;
-    const src = roundsData[id];
-    setSelectedRoundId(id);
-    setDraftRound(deepClone({ id, ...src }));
-    setEditingQuestionIdx(null);
-    setDeleteConfirm(false);
+  function selectRound(id, { scroll = false } = {}) {
+    if (id !== selectedRoundId) {
+      const src = roundsData[id];
+      setSelectedRoundId(id);
+      setDraftRound(deepClone({ id, ...src }));
+      setEditingQuestionIdx(null);
+      setDeleteConfirm(false);
+    }
+    if (scroll) {
+      setTimeout(() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
   }
 
   function startNewRound() {
@@ -95,6 +100,7 @@ export default function ManageView({ adminKey, roundsData, roundOrder, onBack, o
     setDraftRound(draft);
     setEditingQuestionIdx(null);
     setDeleteConfirm(false);
+    setTimeout(() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }
 
   function updateDraft(patch) {
@@ -276,7 +282,7 @@ export default function ManageView({ adminKey, roundsData, roundOrder, onBack, o
               >{"\u2193"}</button>
               <button
                 style={{ ...btnAccent, padding: "5px 14px", fontSize: 12 }}
-                onClick={() => selectRound(r.id)}
+                onClick={() => selectRound(r.id, { scroll: true })}
               >Edit</button>
             </div>
           </div>
@@ -388,7 +394,7 @@ export default function ManageView({ adminKey, roundsData, roundOrder, onBack, o
 
   /* ---- render: round editor ---- */
   const roundEditor = draftRound && (
-    <div style={{
+    <div ref={editorRef} style={{
       width: "100%", maxWidth: 700, marginTop: 24,
       background: "rgba(255,255,255,0.04)", borderRadius: 16,
       padding: "24px 20px", border: `1px solid ${C.sage}33`,
