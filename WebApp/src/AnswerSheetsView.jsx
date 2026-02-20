@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 import { C, LOGO_DATA_URI, btnPrimary, btnGhost } from "./styles.jsx";
 
+// i18n helper — answer sheets always render in English
+const txt = (v) => typeof v === "object" && v !== null ? (v.en ?? String(v)) : (v ?? "");
+
 export default function AnswerSheetsView({ roundsData, roundOrder, teams, teamCount, sessionCode, onClose }) {
   useEffect(() => {
     const style = document.createElement("style");
@@ -166,14 +169,14 @@ function QuestionRow({ q, qIdx, totalQuestions }) {
             {q.label}
           </span>
           <span style={{ fontFamily: "'Inter',sans-serif", fontSize: "9pt", color: "#333", lineHeight: 1.4 }}>
-            {q.text}
+            {txt(q.text)}
           </span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5mm 8mm", paddingLeft: "11mm" }}>
           {q.options.map((opt, i) => (
             <div key={i} style={{ fontFamily: "'Inter',sans-serif", fontSize: "9pt", color: "#444", display: "flex", alignItems: "baseline", gap: "2mm" }}>
               <span style={{ fontSize: "10pt", color: "#bbb" }}>{"\u25CB"}</span>
-              <span>{opt}</span>
+              <span>{txt(opt)}</span>
             </div>
           ))}
         </div>
@@ -189,7 +192,7 @@ function QuestionRow({ q, qIdx, totalQuestions }) {
           {q.label}
         </span>
         <span style={{ fontFamily: "'Inter',sans-serif", fontSize: "9pt", color: "#333", lineHeight: 1.4 }}>
-          {q.text}
+          {txt(q.text)}
         </span>
       </div>
       <div style={{ marginLeft: "11mm", borderBottom: "0.5px dotted #999", height: spacious ? "6mm" : "5mm" }} />

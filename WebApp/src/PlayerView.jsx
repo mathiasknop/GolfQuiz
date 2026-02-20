@@ -1,6 +1,80 @@
 import { useState, useEffect, useCallback } from "react";
 import { C, HERO_BG, LogoMark, SessionBadge, TEAM_PIN_KEY, btnPrimary, btnGhost } from "./styles.jsx";
 
+const LANG_KEY = "gq-lang";
+
+const UI = {
+  en: {
+    typeAnswer: "Type your answer...",
+    lookScreen: "(Look at the projected screen)",
+    submitted: "Submitted",
+    sending: "Sending...",
+    update: "Update",
+    submit: "Submit",
+    yourAnswer: "Your answer:",
+    waitingHost: "Waiting for the host to start the quiz...",
+    selectRound: "Select a round above.",
+    waitingQuestions: "Waiting for the host to reveal questions...",
+    noQuestions: "No questions in this round yet.",
+    waitingRound: "Waiting for the host to start a round...",
+    sessionClosed: "Session is closed \u2014 answers are locked",
+    roundClosed: "Round closed \u2014 answers will be revealed shortly",
+    reviewAnswers: "Round closed \u2014 review correct answers below",
+    welcome: "Welcome,",
+    chooseTeamName: "Choose a creative team name to get started.",
+    enterTeamName: "Enter your team name...",
+    saving: "Saving...",
+    letsGo: "Let's Go!",
+    leave: "Leave",
+  },
+  nl: {
+    typeAnswer: "Typ je antwoord...",
+    lookScreen: "(Kijk naar het projectiescherm)",
+    submitted: "Ingediend",
+    sending: "Verzenden...",
+    update: "Wijzigen",
+    submit: "Indienen",
+    yourAnswer: "Jouw antwoord:",
+    waitingHost: "Wachten tot de host de quiz start...",
+    selectRound: "Selecteer een ronde hierboven.",
+    waitingQuestions: "Wachten tot de host de vragen toont...",
+    noQuestions: "Nog geen vragen in deze ronde.",
+    waitingRound: "Wachten tot de host een ronde start...",
+    sessionClosed: "Sessie is gesloten \u2014 antwoorden zijn vergrendeld",
+    roundClosed: "Ronde gesloten \u2014 antwoorden worden binnenkort onthuld",
+    reviewAnswers: "Ronde gesloten \u2014 bekijk de juiste antwoorden hieronder",
+    welcome: "Welkom,",
+    chooseTeamName: "Kies een creatieve teamnaam om te beginnen.",
+    enterTeamName: "Voer je teamnaam in...",
+    saving: "Opslaan...",
+    letsGo: "Let's Go!",
+    leave: "Verlaten",
+  },
+  fr: {
+    typeAnswer: "Tapez votre réponse...",
+    lookScreen: "(Regardez l'écran de projection)",
+    submitted: "Envoyé",
+    sending: "Envoi...",
+    update: "Modifier",
+    submit: "Envoyer",
+    yourAnswer: "Votre réponse :",
+    waitingHost: "En attente du lancement du quiz par l'hôte...",
+    selectRound: "Sélectionnez une manche ci-dessus.",
+    waitingQuestions: "En attente de la révélation des questions...",
+    noQuestions: "Pas encore de questions dans cette manche.",
+    waitingRound: "En attente du lancement d'une manche...",
+    sessionClosed: "Session fermée \u2014 les réponses sont verrouillées",
+    roundClosed: "Manche fermée \u2014 les réponses seront bientôt révélées",
+    reviewAnswers: "Manche fermée \u2014 consultez les bonnes réponses ci-dessous",
+    welcome: "Bienvenue,",
+    chooseTeamName: "Choisissez un nom d'équipe créatif pour commencer.",
+    enterTeamName: "Entrez le nom de votre équipe...",
+    saving: "Enregistrement...",
+    letsGo: "C'est parti !",
+    leave: "Quitter",
+  },
+};
+
 export default function PlayerView({
   sessionCode,
   teamIdx,
@@ -15,6 +89,12 @@ export default function PlayerView({
   revealedQuestions,
   onLeave,
 }) {
+  const [lang, setLang] = useState(() => localStorage.getItem(LANG_KEY) || "en");
+  const ui = UI[lang] || UI.en;
+  const t = (field) => typeof field === "object" && field !== null ? (field[lang] ?? field.en ?? String(field)) : field;
+  const optKey = (opt) => typeof opt === "object" && opt !== null ? (opt.en ?? String(opt)) : opt;
+  const changeLang = (l) => { setLang(l); localStorage.setItem(LANG_KEY, l); };
+
   const [localAnswers, setLocalAnswers] = useState({});
   const [submitting, setSubmitting] = useState({});
   const visibleRounds = roundOrder ? roundOrder.filter(rid => (openRounds || []).includes(rid)) : [];
@@ -107,6 +187,22 @@ export default function PlayerView({
 
   const isClosed = sessionStatus === "closed";
 
+  const langPicker = (
+    <div style={{ display: "flex", gap: 2 }}>
+      {["en", "nl", "fr"].map(l => (
+        <button key={l} onClick={() => changeLang(l)} style={{
+          padding: "4px 6px", fontSize: 10, fontWeight: lang === l ? 700 : 400,
+          background: lang === l ? C.cream : "transparent",
+          color: lang === l ? C.greenDeep : C.sage,
+          border: lang === l ? "none" : `1px solid ${C.border}`,
+          borderRadius: 2, cursor: "pointer", fontFamily: "'Inter', sans-serif",
+          textTransform: "uppercase", minWidth: 28, minHeight: 28,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>{l}</button>
+      ))}
+    </div>
+  );
+
   // Mandatory team name prompt — blocks the quiz until team enters a name
   if (isDefaultName && !isClosed) {
     return (
@@ -116,11 +212,12 @@ export default function PlayerView({
           <div style={{ maxWidth: 380, width: "100%", textAlign: "center" }}>
             <LogoMark size="lg" />
             <h2 style={{ fontSize: 18, fontWeight: 700, color: C.cream, marginTop: 24, marginBottom: 8, letterSpacing: 3, textTransform: "uppercase" }}>
-              Welcome, {teamName}!
+              {ui.welcome} {teamName}!
             </h2>
-            <p style={{ fontSize: 13, color: C.sage, marginBottom: 24 }}>
-              Choose a creative team name to get started.
+            <p style={{ fontSize: 13, color: C.sage, marginBottom: 16 }}>
+              {ui.chooseTeamName}
             </p>
+            <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }}>{langPicker}</div>
             <input
               type="text"
               value={nameInput}
@@ -128,7 +225,7 @@ export default function PlayerView({
               onKeyDown={(e) => e.key === "Enter" && nameInput.trim() && submitTeamName()}
               maxLength={30}
               autoFocus
-              placeholder="Enter your team name..."
+              placeholder={ui.enterTeamName}
               style={{
                 width: "100%", boxSizing: "border-box", padding: "12px 16px",
                 borderRadius: 8, border: `1.5px solid ${C.sage}44`,
@@ -146,7 +243,7 @@ export default function PlayerView({
                 opacity: (nameSaving || !nameInput.trim()) ? 0.5 : 1,
               }}
             >
-              {nameSaving ? "Saving..." : "Let's Go!"}
+              {nameSaving ? ui.saving : ui.letsGo}
             </button>
           </div>
         </div>
@@ -211,6 +308,7 @@ export default function PlayerView({
           </div>
         )}
         <div style={{ flex: 1 }} />
+        {langPicker}
         <button
           onClick={onLeave}
           style={{
@@ -224,24 +322,24 @@ export default function PlayerView({
             justifyContent: "center",
           }}
         >
-          {"\u2190"} Leave
+          {"\u2190"} {ui.leave}
         </button>
       </div>
 
       {/* Status banner */}
       {isClosed && (
         <div style={{ background: "#b91c1c", color: "#fff", textAlign: "center", padding: "10px 12px", fontSize: 13, fontWeight: 600 }}>
-          Session is closed {"\u2014"} answers are locked
+          {ui.sessionClosed}
         </div>
       )}
       {!isClosed && selectedTab && isRoundClosed(selectedTab) && !isAnswerRevealed(selectedTab) && (
         <div style={{ background: "rgba(212, 175, 55, 0.12)", color: C.gold, textAlign: "center", padding: "10px 12px", fontSize: 13, fontWeight: 600 }}>
-          Round closed {"\u2014"} answers will be revealed shortly
+          {ui.roundClosed}
         </div>
       )}
       {!isClosed && selectedTab && isAnswerRevealed(selectedTab) && (
         <div style={{ background: "rgba(90, 158, 106, 0.15)", color: C.correctBright, textAlign: "center", padding: "10px 12px", fontSize: 13, fontWeight: 600 }}>
-          Round closed {"\u2014"} review correct answers below
+          {ui.reviewAnswers}
         </div>
       )}
 
@@ -287,7 +385,7 @@ export default function PlayerView({
         </div>
       ) : (
         <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>
-          Waiting for the host to start the quiz...
+          {ui.waitingHost}
         </div>
       )}
 
@@ -296,7 +394,7 @@ export default function PlayerView({
         {!selectedTab || !visibleRounds.includes(selectedTab) ? (
           visibleRounds.length > 0 ? (
             <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>
-              Select a round above.
+              {ui.selectRound}
             </div>
           ) : null
         ) : round && round.questions && round.questions.length > 0 ? (
@@ -307,7 +405,7 @@ export default function PlayerView({
               ? round.questions.slice(0, revealCount)
               : round.questions;
             return visibleQuestions.length === 0
-              ? <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>Waiting for the host to reveal questions...</div>
+              ? <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>{ui.waitingQuestions}</div>
               : visibleQuestions.map((q) => {
             const serverAnswer = answers ? answers[`${teamIdx}-${q.id}`] : undefined;
             const localVal = localAnswers[q.id] || "";
@@ -332,7 +430,7 @@ export default function PlayerView({
                 <div style={{ fontWeight: 700, color: C.cream, fontSize: 14, marginBottom: 4 }}>
                   {q.label}
                 </div>
-                <div style={{ color: C.sage, fontSize: 13, marginBottom: answersRevealed && q.answer ? 6 : 12 }}>{q.text}</div>
+                <div style={{ color: C.sage, fontSize: 13, marginBottom: answersRevealed && q.answer ? 6 : 12 }}>{t(q.text)}</div>
 
                 {/* Correct answer reveal — only after next round opens or session closes */}
                 {answersRevealed && q.answer && (
@@ -347,7 +445,7 @@ export default function PlayerView({
 
                 {q.type === "image" && (
                   <div style={{ color: C.sage, fontSize: 12, fontStyle: "italic", marginBottom: 10 }}>
-                    (Look at the projected screen)
+                    {ui.lookScreen}
                   </div>
                 )}
 
@@ -362,13 +460,14 @@ export default function PlayerView({
                     }}
                   >
                     {q.options.map((opt, i) => {
-                      const isSelected = localVal === opt;
+                      const key = optKey(opt);
+                      const isSelected = localVal === key;
                       return (
                         <button
                           key={i}
                           disabled={disabled}
                           onClick={() =>
-                            setLocalAnswers((prev) => ({ ...prev, [q.id]: opt }))
+                            setLocalAnswers((prev) => ({ ...prev, [q.id]: key }))
                           }
                           style={{
                             padding: 12,
@@ -384,7 +483,7 @@ export default function PlayerView({
                             opacity: disabled ? 0.6 : 1,
                           }}
                         >
-                          {opt}
+                          {t(opt)}
                         </button>
                       );
                     })}
@@ -401,7 +500,7 @@ export default function PlayerView({
                       onChange={(e) =>
                         setLocalAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
                       }
-                      placeholder="Type your answer..."
+                      placeholder={ui.typeAnswer}
                       style={{
                         width: "100%",
                         boxSizing: "border-box",
@@ -432,13 +531,14 @@ export default function PlayerView({
                     }}
                   >
                     {q.options.map((opt, i) => {
-                      const isSelected = localVal === opt;
+                      const key = optKey(opt);
+                      const isSelected = localVal === key;
                       return (
                         <button
                           key={i}
                           disabled={disabled}
                           onClick={() =>
-                            setLocalAnswers((prev) => ({ ...prev, [q.id]: opt }))
+                            setLocalAnswers((prev) => ({ ...prev, [q.id]: key }))
                           }
                           style={{
                             padding: "8px 12px",
@@ -454,7 +554,7 @@ export default function PlayerView({
                             opacity: disabled ? 0.6 : 1,
                           }}
                         >
-                          {opt}
+                          {t(opt)}
                         </button>
                       );
                     })}
@@ -476,18 +576,18 @@ export default function PlayerView({
                         cursor: isLoading || !localVal ? "not-allowed" : "pointer",
                       }}
                     >
-                      {isLoading ? "Sending..." : isSubmitted ? "Update" : "Submit"}
+                      {isLoading ? ui.sending : isSubmitted ? ui.update : ui.submit}
                     </button>
                     {isSubmitted && (
                       <span style={{ color: C.gold, fontSize: 12, fontWeight: 600 }}>
-                        {"\u2713"} Submitted
+                        {"\u2713"} {ui.submitted}
                       </span>
                     )}
                   </div>
                 )}
                 {!answerable && isSubmitted && (
                   <div style={{ fontSize: 12, color: C.sage, fontStyle: "italic" }}>
-                    Your answer: {serverAnswer}
+                    {ui.yourAnswer} {serverAnswer}
                   </div>
                 )}
               </div>
@@ -496,7 +596,7 @@ export default function PlayerView({
           })()
         ) : (
           <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>
-            {round ? "No questions in this round yet." : "Waiting for the host to start a round..."}
+            {round ? ui.noQuestions : ui.waitingRound}
           </div>
         )}
       </div>

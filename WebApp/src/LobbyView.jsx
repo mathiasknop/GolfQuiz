@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { C, HERO_BG, LogoMark, btnPrimary, btnGhost } from "./styles.jsx";
 
+const LANG_KEY = "gq-lang";
+
 export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
   const [joinCode, setJoinCode] = useState("GQ-");
   const [joinPin, setJoinPin] = useState("");
@@ -14,6 +16,7 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
   const [playerPin, setPlayerPin] = useState("");
   const [playerError, setPlayerError] = useState(null);
   const [playerBusy, setPlayerBusy] = useState(false);
+  const [playerLang, setPlayerLang] = useState(() => localStorage.getItem(LANG_KEY) || "en");
 
   const handleJoin = () => {
     const code = joinCode.trim().toUpperCase();
@@ -51,6 +54,7 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
   const handlePlay = () => {
     if (playerTeamIdx === null || !playerPin.trim() || playerPin.length < 4) return;
     setPlayerBusy(true);
+    localStorage.setItem(LANG_KEY, playerLang);
     onJoinAsPlayer(playerCode.trim().toUpperCase(), playerTeamIdx, playerPin.trim())
       .catch(() => { setPlayerError("Invalid PIN or failed to join."); setPlayerBusy(false); });
   };
@@ -132,6 +136,25 @@ export default function LobbyView({ onJoinSession, onJoinAsPlayer, onGuide }) {
                     </button>
                   ))}
                 </div>
+                {/* Language picker */}
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 11, color: C.sage, marginBottom: 6, fontFamily: "'Inter', sans-serif", letterSpacing: 1.5, textTransform: "uppercase" }}>Language</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {[["en", "English"], ["nl", "Nederlands"], ["fr", "Français"]].map(([code, label]) => (
+                      <button key={code} onClick={() => setPlayerLang(code)} style={{
+                        padding: "8px 14px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: "'Inter', sans-serif",
+                        background: playerLang === code ? C.cream : C.greenMid,
+                        color: playerLang === code ? C.greenDeep : C.sage,
+                        border: playerLang === code ? "none" : `1px solid ${C.border}`,
+                        fontWeight: playerLang === code ? 600 : 400,
+                        transition: "all 0.15s", flex: 1,
+                      }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {playerTeamIdx !== null && (
                   <div style={{ marginTop: 10 }}>
                     <input

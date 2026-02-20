@@ -59,6 +59,9 @@ function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
+// i18n helper — admin editor always shows English text
+const txt = (v) => typeof v === "object" && v !== null ? (v.en ?? String(v)) : (v ?? "");
+
 export default function ManageView({ adminKey, roundsData, roundOrder, onBack, onRoundsChanged }) {
   const [selectedRoundId, setSelectedRoundId] = useState(null);
   const [editingQuestionIdx, setEditingQuestionIdx] = useState(null);
@@ -328,7 +331,7 @@ export default function ManageView({ adminKey, roundsData, roundOrder, onBack, o
           <textarea
             style={{ ...inputStyle, resize: "vertical" }}
             rows={3}
-            value={q.text || ""}
+            value={txt(q.text)}
             onChange={(e) => updateDraftQuestion(idx, { text: e.target.value })}
             placeholder="Full question text..."
           />
@@ -356,7 +359,7 @@ export default function ManageView({ adminKey, roundsData, roundOrder, onBack, o
               <div key={oi} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
                 <input
                   style={{ ...inputStyle, flex: 1 }}
-                  value={opt}
+                  value={txt(opt)}
                   onChange={(e) => {
                     const opts = [...(q.options || [])];
                     opts[oi] = e.target.value;
@@ -463,7 +466,7 @@ export default function ManageView({ adminKey, roundsData, roundOrder, onBack, o
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   display: "inline-block", maxWidth: 340, verticalAlign: "middle",
                 }}>
-                  {q.text || "(no text)"}
+                  {txt(q.text) || "(no text)"}
                 </span>
                 <span style={{ ...typeBadge(q.type === "multiple-choice" ? "series" : q.type === "pick-from-list" ? "photo" : "varia"), marginLeft: 8, fontSize: 10 }}>
                   {q.type || "open"}
