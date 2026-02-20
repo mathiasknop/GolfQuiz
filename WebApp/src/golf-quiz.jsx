@@ -292,6 +292,7 @@ function App() {
     setRoundTimers(prev => ({ ...prev, [nextRound]: { start: now } }));
     setOpenRounds(prev => [...prev, nextRound]);
     setRoundClosed(false);
+    setRevealedQuestions(prev => ({ ...prev, [nextRound]: 0 }));
     setActiveRound(nextRound);
     setView("scoring");
   }, [roundOrder, openRounds, roundTimers]);
