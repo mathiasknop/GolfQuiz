@@ -21,6 +21,36 @@ export default function PlayerView({
   const [selectedTab, setSelectedTab] = useState(currentRound || activeRound || (roundOrder && roundOrder[0]) || null);
   const isRoundAnswerable = (rid) => rid === currentRound && sessionStatus === "open" && !roundClosed;
   const isRoundClosed = (rid) => (openRounds || []).includes(rid) && (rid !== currentRound || roundClosed);
+  const isAnswerRevealed = (rid) => (openRounds || []).includes(rid) && rid !== currentRound;
+
+  // Team name editing
+  const isDefaultName = /^Team \d+$/.test(teamName);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(isDefaultName ? "" : teamName);
+  const [nameSaving, setNameSaving] = useState(false);
+
+  useEffect(() => {
+    if (!editingName && !isDefaultName) setNameInput(teamName);
+  }, [teamName, editingName, isDefaultName]);
+
+  const submitTeamName = useCallback(async () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed) return;
+    setNameSaving(true);
+    try {
+      const pin = localStorage.getItem(TEAM_PIN_KEY) || "";
+      const res = await fetch(`/api/session/${sessionCode}/team-name`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-team-pin": pin },
+        body: JSON.stringify({ teamIdx, name: trimmed }),
+      });
+      if (res.ok) setEditingName(false);
+    } catch (e) {
+      console.error("Name update failed:", e);
+    } finally {
+      setNameSaving(false);
+    }
+  }, [nameInput, sessionCode, teamIdx]);
 
   // Merge server answers into local state (only this team's answers)
   useEffect(() => {
@@ -76,6 +106,53 @@ export default function PlayerView({
 
   const isClosed = sessionStatus === "closed";
 
+  // Mandatory team name prompt — blocks the quiz until team enters a name
+  if (isDefaultName && !isClosed) {
+    return (
+      <div style={{ minHeight: "100vh", background: `url(${HERO_BG}) center/cover no-repeat fixed`, fontFamily: "'Inter', sans-serif" }}>
+        <div style={{ position: "fixed", inset: 0, background: C.overlay, zIndex: 0 }} />
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 20 }}>
+          <div style={{ maxWidth: 380, width: "100%", textAlign: "center" }}>
+            <LogoMark size="lg" />
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: C.cream, marginTop: 24, marginBottom: 8, letterSpacing: 3, textTransform: "uppercase" }}>
+              Welcome, {teamName}!
+            </h2>
+            <p style={{ fontSize: 13, color: C.sage, marginBottom: 24 }}>
+              Choose a creative team name to get started.
+            </p>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && nameInput.trim() && submitTeamName()}
+              maxLength={30}
+              autoFocus
+              placeholder="Enter your team name..."
+              style={{
+                width: "100%", boxSizing: "border-box", padding: "12px 16px",
+                borderRadius: 8, border: `1.5px solid ${C.sage}44`,
+                background: "rgba(255,255,255,0.08)", color: C.cream,
+                fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 600,
+                outline: "none", textAlign: "center",
+              }}
+            />
+            <button
+              onClick={submitTeamName}
+              disabled={nameSaving || !nameInput.trim()}
+              style={{
+                ...btnPrimary, marginTop: 16, width: "100%", padding: "14px 20px",
+                fontSize: 15, fontWeight: 700,
+                opacity: (nameSaving || !nameInput.trim()) ? 0.5 : 1,
+              }}
+            >
+              {nameSaving ? "Saving..." : "Let's Go!"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: C.greenDeep, fontFamily: "'Inter', sans-serif" }}>
       {/* Sticky header */}
@@ -94,22 +171,44 @@ export default function PlayerView({
       >
         <LogoMark size="sm" />
         <SessionBadge code={sessionCode} />
-        <div
-          style={{
-            background: C.cream,
-            color: C.greenDeep,
-            fontWeight: 600,
-            fontSize: 12,
-            padding: "4px 10px",
-            borderRadius: 3,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            maxWidth: 120,
-          }}
-        >
-          {teamName}
-        </div>
+        {editingName ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") submitTeamName(); if (e.key === "Escape") { setEditingName(false); setNameInput(teamName); } }}
+              maxLength={30}
+              autoFocus
+              style={{
+                width: 110, padding: "4px 8px", borderRadius: 3,
+                border: `1px solid ${C.gold}`, background: C.cream,
+                color: C.greenDeep, fontSize: 12, fontWeight: 600,
+                fontFamily: "'Inter', sans-serif", outline: "none",
+              }}
+            />
+            <button onClick={submitTeamName} disabled={nameSaving} style={{ ...btnGhost, fontSize: 10, padding: "4px 8px", minHeight: 28, minWidth: 28 }}>
+              {nameSaving ? "..." : "\u2713"}
+            </button>
+            <button onClick={() => { setEditingName(false); setNameInput(teamName); }} style={{ ...btnGhost, fontSize: 10, padding: "4px 8px", minHeight: 28, minWidth: 28 }}>
+              {"\u2717"}
+            </button>
+          </div>
+        ) : (
+          <div
+            onClick={() => !isClosed && setEditingName(true)}
+            style={{
+              background: C.cream, color: C.greenDeep, fontWeight: 600, fontSize: 12,
+              padding: "4px 10px", borderRadius: 3, whiteSpace: "nowrap",
+              overflow: "hidden", textOverflow: "ellipsis", maxWidth: 120,
+              cursor: isClosed ? "default" : "pointer",
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
+            {teamName}
+            {!isClosed && <span style={{ fontSize: 10, opacity: 0.5 }}>{"\u270E"}</span>}
+          </div>
+        )}
         <div style={{ flex: 1 }} />
         <button
           onClick={onLeave}
@@ -134,7 +233,12 @@ export default function PlayerView({
           Session is closed {"\u2014"} answers are locked
         </div>
       )}
-      {!isClosed && selectedTab && isRoundClosed(selectedTab) && (
+      {!isClosed && selectedTab && isRoundClosed(selectedTab) && !isAnswerRevealed(selectedTab) && (
+        <div style={{ background: "rgba(212, 175, 55, 0.12)", color: C.gold, textAlign: "center", padding: "10px 12px", fontSize: 13, fontWeight: 600 }}>
+          Round closed {"\u2014"} answers will be revealed shortly
+        </div>
+      )}
+      {!isClosed && selectedTab && isAnswerRevealed(selectedTab) && (
         <div style={{ background: "rgba(90, 158, 106, 0.15)", color: C.correctBright, textAlign: "center", padding: "10px 12px", fontSize: 13, fontWeight: 600 }}>
           Round closed {"\u2014"} review correct answers below
         </div>
@@ -202,7 +306,7 @@ export default function PlayerView({
             const isLoading = submitting[q.id] || false;
             const answerable = isRoundAnswerable(selectedTab);
             const disabled = !answerable;
-            const roundIsClosed = isRoundClosed(selectedTab);
+            const answersRevealed = isAnswerRevealed(selectedTab) || isClosed;
 
             return (
               <div
@@ -219,10 +323,10 @@ export default function PlayerView({
                 <div style={{ fontWeight: 700, color: C.cream, fontSize: 14, marginBottom: 4 }}>
                   {q.label}
                 </div>
-                <div style={{ color: C.sage, fontSize: 13, marginBottom: roundIsClosed && q.answer ? 6 : 12 }}>{q.text}</div>
+                <div style={{ color: C.sage, fontSize: 13, marginBottom: answersRevealed && q.answer ? 6 : 12 }}>{q.text}</div>
 
-                {/* Correct answer reveal for closed rounds */}
-                {roundIsClosed && q.answer && (
+                {/* Correct answer reveal — only after next round opens or session closes */}
+                {answersRevealed && q.answer && (
                   <div style={{
                     marginBottom: 12, padding: "8px 12px", borderRadius: 3,
                     background: "rgba(90, 158, 106, 0.12)", border: `1px solid rgba(90, 158, 106, 0.25)`,

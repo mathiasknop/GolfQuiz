@@ -1,14 +1,66 @@
 import { C, HERO_BG, LogoMark, SessionBadge, btnAccent, btnPrimary, btnGhost } from "./styles.jsx";
 
+// --- Web Audio reveal sounds ---
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playRevealSound() {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(1320, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.25);
+  } catch (e) { /* audio not available */ }
+}
+
+function playWinnerFanfare() {
+  try {
+    const ctx = getAudioCtx();
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12);
+      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.12);
+      gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + i * 0.12 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.4);
+      osc.start(ctx.currentTime + i * 0.12);
+      osc.stop(ctx.currentTime + i * 0.12 + 0.4);
+    });
+  } catch (e) { /* audio not available */ }
+}
+
 export default function LeaderboardView({ leaderboard, onBack, revealed, setRevealed, revealCount, setRevealCount, roundsData, roundOrder, sessionCode, onNextRound }) {
   const maxTotal = roundOrder.reduce((sum, rid) => sum + (roundsData[rid]?.maxPts || 0), 0);
   const totalTeams = leaderboard.length;
 
   const handleRevealNext = () => {
     if (revealCount >= totalTeams) { setRevealed(true); return; }
-    setRevealCount(p => p + 1);
+    const nextCount = revealCount + 1;
+    if (nextCount === totalTeams) {
+      playWinnerFanfare();
+      setRevealCount(totalTeams);
+      setRevealed(true);
+    } else {
+      playRevealSound();
+      setRevealCount(nextCount);
+    }
   };
-  const handleRevealAll = () => { setRevealCount(totalTeams); setRevealed(true); };
+  const handleRevealAll = () => { playWinnerFanfare(); setRevealCount(totalTeams); setRevealed(true); };
 
   const displayList = revealed
     ? leaderboard

@@ -44,6 +44,55 @@ export default function AnswerSheetsView({ roundsData, roundOrder, teams, teamCo
         <button onClick={() => window.print()} style={{ ...btnPrimary, fontSize: 13, padding: "8px 20px" }}>Print</button>
       </div>
 
+      {/* Front page: round overview */}
+      <div className="as-page" style={pageStyle}>
+        <div style={{ background: C.greenDeep, padding: "5mm 10mm", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <img src={LOGO_DATA_URI} alt="Logo" style={{ height: "8mm" }} />
+          <div style={{ fontFamily: "'Inter',sans-serif", fontSize: "9pt", color: C.sage, letterSpacing: 2 }}>{sessionCode}</div>
+        </div>
+        <div style={{ padding: "12mm 10mm 0", flex: 1 }}>
+          <div style={{ fontFamily: "'Inter',sans-serif", fontSize: "22pt", fontWeight: 700, color: C.greenDeep, marginBottom: "2mm" }}>
+            Golf Quiz
+          </div>
+          <div style={{ fontFamily: "'Inter',sans-serif", fontSize: "11pt", color: "#888", marginBottom: "10mm" }}>
+            The National Golf Brussels
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Inter',sans-serif" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", fontSize: "9pt", fontWeight: 600, color: "#888", padding: "3mm 3mm 2mm", borderBottom: `2px solid ${C.greenDeep}`, letterSpacing: 1, textTransform: "uppercase" }}>Round</th>
+                <th style={{ textAlign: "left", fontSize: "9pt", fontWeight: 600, color: "#888", padding: "3mm 3mm 2mm", borderBottom: `2px solid ${C.greenDeep}`, letterSpacing: 1, textTransform: "uppercase" }}>Topic</th>
+                <th style={{ textAlign: "center", fontSize: "9pt", fontWeight: 600, color: "#888", padding: "3mm 3mm 2mm", borderBottom: `2px solid ${C.greenDeep}`, letterSpacing: 1, textTransform: "uppercase" }}>Questions</th>
+                <th style={{ textAlign: "center", fontSize: "9pt", fontWeight: 600, color: "#888", padding: "3mm 3mm 2mm", borderBottom: `2px solid ${C.greenDeep}`, letterSpacing: 1, textTransform: "uppercase" }}>Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rounds.map((r, i) => (
+                <tr key={r.id} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }}>
+                  <td style={{ fontSize: "10pt", fontWeight: 600, color: C.greenDeep, padding: "3mm" }}>{r.name}</td>
+                  <td style={{ fontSize: "10pt", color: "#444", padding: "3mm" }}>{r.subtitle}</td>
+                  <td style={{ fontSize: "10pt", color: "#444", padding: "3mm", textAlign: "center" }}>{r.questions.length}</td>
+                  <td style={{ fontSize: "10pt", fontWeight: 600, color: C.greenDeep, padding: "3mm", textAlign: "center" }}>{r.maxPts}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={2} style={{ fontSize: "10pt", fontWeight: 700, color: C.greenDeep, padding: "3mm 3mm 2mm", borderTop: `2px solid ${C.greenDeep}` }}>Total</td>
+                <td style={{ fontSize: "10pt", fontWeight: 700, color: C.greenDeep, padding: "3mm 3mm 2mm", borderTop: `2px solid ${C.greenDeep}`, textAlign: "center" }}>{rounds.reduce((s, r) => s + r.questions.length, 0)}</td>
+                <td style={{ fontSize: "10pt", fontWeight: 700, color: C.greenDeep, padding: "3mm 3mm 2mm", borderTop: `2px solid ${C.greenDeep}`, textAlign: "center" }}>{rounds.reduce((s, r) => s + r.maxPts, 0)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div style={{ padding: "0 10mm 6mm", marginTop: "auto", textAlign: "center" }}>
+          <div style={{ width: "20mm", height: "0.3mm", background: "#ddd", margin: "0 auto 2mm" }} />
+          <div style={{ fontFamily: "'Inter',sans-serif", fontSize: "7pt", color: "#bbb", letterSpacing: 2, textTransform: "uppercase" }}>
+            Golf Quiz {"\u00B7"} The National Golf Brussels
+          </div>
+        </div>
+      </div>
+
       {/* One A4 page per team per round */}
       {Array.from({ length: teamCount }, (_, tIdx) =>
         rounds.map((round, rIdx) => {

@@ -396,6 +396,63 @@ app.http("session-answer", {
   },
 });
 
+// PATCH /api/session/{code}/team-name — atomic team name update (team PIN required)
+app.http("session-team-name", {
+  methods: ["PATCH"],
+  authLevel: "anonymous",
+  route: "session/{code}/team-name",
+  handler: async (request, context) => {
+    const code = request.params.code.toUpperCase();
+    try {
+      const body = await request.json();
+      const { teamIdx, name } = body;
+
+      if (typeof teamIdx !== "number" || teamIdx < 0 || teamIdx > 19) {
+        return { status: 400, jsonBody: { error: "teamIdx must be a number 0-19" } };
+      }
+      if (!name || typeof name !== "string") {
+        return { status: 400, jsonBody: { error: "name is required" } };
+      }
+      const sanitizedName = name.trim().slice(0, 30);
+      if (!sanitizedName) {
+        return { status: 400, jsonBody: { error: "name cannot be empty" } };
+      }
+
+      const { resource } = await sessions.item(code, code).read();
+      if (!resource) {
+        return { status: 404, jsonBody: { error: "Session not found" } };
+      }
+      if (resource.status !== "open") {
+        return { status: 403, jsonBody: { error: "Session is closed" } };
+      }
+      if (teamIdx >= (resource.teamCount || 10)) {
+        return { status: 400, jsonBody: { error: "Team index out of range" } };
+      }
+
+      const pin = request.headers.get("x-team-pin");
+      if (!pin) {
+        return { status: 401, jsonBody: { error: "Team PIN required" } };
+      }
+      const expectedPin = (resource.teamPins || {})[String(teamIdx)];
+      if (!expectedPin || pin !== expectedPin) {
+        return { status: 403, jsonBody: { error: "Invalid team PIN" } };
+      }
+
+      await sessions.item(code, code).patch([
+        { op: "set", path: `/teams/${teamIdx}`, value: sanitizedName },
+      ]);
+
+      return { jsonBody: { ok: true } };
+    } catch (err) {
+      if (err.code === 404) {
+        return { status: 404, jsonBody: { error: "Session not found" } };
+      }
+      context.error("Failed to update team name:", err.message);
+      return { status: 500, jsonBody: { error: "Failed to update team name" } };
+    }
+  },
+});
+
 // GET /api/session/{code}/admin — full session with sensitive fields (admin only)
 app.http("session-admin-get", {
   methods: ["GET"],
