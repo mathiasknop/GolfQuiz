@@ -220,8 +220,8 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
               Open Round
             </button>
           )}
-          {/* Close current round (visible when a round is live) */}
-          {isLive && !isClosed && (
+          {/* Close current round (visible when viewing the live round) */}
+          {activeRound === currentOpenRound && isLive && !isClosed && (
             <button onClick={handleCloseRound} style={{
               ...btnGhost, fontSize: 10, color: C.gold, borderColor: C.gold,
             }}>

@@ -24,23 +24,47 @@ function playRevealSound() {
   } catch (e) { /* audio not available */ }
 }
 
-function playWinnerFanfare() {
+function playApplause() {
   try {
     const ctx = getAudioCtx();
-    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
+    const duration = 3;
+    const t = ctx.currentTime;
+    // Create several noise sources for a dense crowd feel
+    for (let i = 0; i < 6; i++) {
+      const bufferSize = ctx.sampleRate * duration;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let j = 0; j < bufferSize; j++) data[j] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      // Band-pass filter to shape noise into clap-like frequency range
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = 800 + i * 400; // spread across 800–3200 Hz
+      bp.Q.value = 0.5 + Math.random() * 0.5;
+      // Amplitude modulation for rhythmic clap texture
+      const modGain = ctx.createGain();
+      const mod = ctx.createOscillator();
+      const modDepth = ctx.createGain();
+      mod.frequency.value = 3 + Math.random() * 6; // 3–9 Hz flutter
+      modDepth.gain.value = 0.4;
+      mod.connect(modDepth);
+      modDepth.connect(modGain.gain);
+      mod.start(t);
+      mod.stop(t + duration);
+      // Volume envelope: fade in, sustain, fade out
       const gain = ctx.createGain();
-      osc.connect(gain);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.06, t + 0.3);
+      gain.gain.setValueAtTime(0.06, t + duration * 0.6);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+      src.connect(bp);
+      bp.connect(modGain);
+      modGain.connect(gain);
       gain.connect(ctx.destination);
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12);
-      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.12);
-      gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + i * 0.12 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.4);
-      osc.start(ctx.currentTime + i * 0.12);
-      osc.stop(ctx.currentTime + i * 0.12 + 0.4);
-    });
+      src.start(t + Math.random() * 0.1); // slight stagger
+      src.stop(t + duration);
+    }
   } catch (e) { /* audio not available */ }
 }
 
@@ -52,7 +76,7 @@ export default function LeaderboardView({ leaderboard, onBack, revealed, setReve
     if (revealCount >= totalTeams) { setRevealed(true); return; }
     const nextCount = revealCount + 1;
     if (nextCount === totalTeams) {
-      playWinnerFanfare();
+      playApplause();
       setRevealCount(totalTeams);
       setRevealed(true);
     } else {
@@ -60,7 +84,7 @@ export default function LeaderboardView({ leaderboard, onBack, revealed, setReve
       setRevealCount(nextCount);
     }
   };
-  const handleRevealAll = () => { playWinnerFanfare(); setRevealCount(totalTeams); setRevealed(true); };
+  const handleRevealAll = () => { playApplause(); setRevealCount(totalTeams); setRevealed(true); };
 
   const displayList = revealed
     ? leaderboard
