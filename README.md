@@ -4,15 +4,15 @@ A real-time golf quiz and scoring app built for **The National Golf Brussels**.
 
 ## About
 
-Interactive quiz night application featuring 9 rounds of golf trivia with host-controlled rounds, live scoring with auto-score, team answer submission, and a dramatic leaderboard reveal. Supports up to 20 teams with multiple players per team.
+Interactive quiz night application featuring 10 rounds of golf trivia with host-controlled rounds, live scoring with auto-score, team answer submission, custom team names, delayed answer reveal, and a dramatic leaderboard reveal with sound effects. Supports up to 20 teams with multiple players per team.
 
 ### Quiz Rounds
 
-- **Series 1-7** — Themed question rounds (Ryder Cup, New Superstars, Women's Golf, Golf in Belgium, Old Superstars, The Open, The Majors)
+- **Series 1-8** — Themed question rounds (Ryder Cup, New Superstars, Women's Golf, Golf in Belgium, Old Superstars, The Open, The Majors, The National)
 - **Varia** — 15 mixed golf knowledge questions (runs alongside Series 2-4)
 - **Photo** — Identify 10 golf legends from photos (runs alongside Series 5-6)
 
-Maximum total score: **67 points**
+Maximum total score: **76 points**
 
 ## How It Works
 
@@ -28,10 +28,11 @@ Maximum total score: **67 points**
 
 ### Player Flow
 1. Scan the QR code on the table (auto-joins) or enter the session code + Team PIN manually
-2. Wait for the host to open a round — questions appear automatically when a round opens
-3. Answer questions on your phone — open text, multiple choice, image, or pick-from-list
-4. Review previous rounds — after the host moves on, go back to see correct answers alongside your submissions
-5. Multiple players per team can join simultaneously and see each other's answers in real time
+2. Choose a custom team name — mandatory before accessing questions (editable later via header badge)
+3. Wait for the host to open a round — questions appear automatically when a round opens
+4. Answer questions on your phone — open text, multiple choice, image, or pick-from-list
+5. Review previous rounds — correct answers are revealed only after the host opens the next round, so the quiz master can present answers one by one first
+6. Multiple players per team can join simultaneously and see each other's answers in real time
 
 ## Tech Stack
 
@@ -52,7 +53,8 @@ WebApp/
 │   ├── SetupView.jsx         # Team setup + QR code printing
 │   ├── ScoringView.jsx       # Score entry grid, auto-score, round controls
 │   ├── PlayerView.jsx        # Player answer submission, round visibility
-│   ├── LeaderboardView.jsx   # Leaderboard reveal
+│   ├── LeaderboardView.jsx   # Leaderboard reveal with sound effects
+│   ├── AnswerSheetsView.jsx  # Printable answer sheets (per-team front page + round pages)
 │   ├── QRCodesView.jsx       # Printable QR codes (one A4 per team)
 │   ├── AdminView.jsx         # Admin panel (PINs, session management)
 │   ├── GuideView.jsx         # Help & guide
