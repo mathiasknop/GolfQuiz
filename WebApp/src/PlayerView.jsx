@@ -12,6 +12,7 @@ export default function PlayerView({
   sessionStatus,
   openRounds,
   roundClosed,
+  revealedQuestions,
   onLeave,
 }) {
   const [localAnswers, setLocalAnswers] = useState({});
@@ -299,7 +300,15 @@ export default function PlayerView({
             </div>
           ) : null
         ) : round && round.questions && round.questions.length > 0 ? (
-          round.questions.map((q) => {
+          (() => {
+            const isCurrentLive = selectedTab === currentRound && !roundClosed;
+            const revealCount = revealedQuestions?.[selectedTab];
+            const visibleQuestions = isCurrentLive && revealCount != null
+              ? round.questions.slice(0, revealCount)
+              : round.questions;
+            return visibleQuestions.length === 0
+              ? <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>Waiting for the host to reveal questions...</div>
+              : visibleQuestions.map((q) => {
             const serverAnswer = answers ? answers[`${teamIdx}-${q.id}`] : undefined;
             const localVal = localAnswers[q.id] || "";
             const isSubmitted = serverAnswer !== undefined && serverAnswer !== null;
@@ -483,7 +492,8 @@ export default function PlayerView({
                 )}
               </div>
             );
-          })
+          });
+          })()
         ) : (
           <div style={{ textAlign: "center", color: C.sage, fontSize: 14, padding: "40px 20px" }}>
             {round ? "No questions in this round yet." : "Waiting for the host to start a round..."}

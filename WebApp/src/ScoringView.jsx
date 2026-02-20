@@ -60,7 +60,7 @@ function ScoreButton({ value, onChange, disabled }) {
   );
 }
 
-export default function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, onLeaveSession, roundsData, roundOrder, sessionCode, sessionStatus, onToggleStatus, answers, openRounds, setOpenRounds, roundClosed, setRoundClosed, roundTimers, setRoundTimers, lastSeen }) {
+export default function ScoringView({ activeRound, setActiveRound, activeTeams, scores, setScore, getTeamRoundScore, showAnswers, setShowAnswers, onLeaderboard, onSetup, onLeaveSession, roundsData, roundOrder, sessionCode, sessionStatus, onToggleStatus, answers, openRounds, setOpenRounds, roundClosed, setRoundClosed, roundTimers, setRoundTimers, lastSeen, revealedQuestions, setRevealedQuestions }) {
   const round = roundsData?.[activeRound];
   const isClosed = sessionStatus === "closed";
   const currentOpenRound = openRounds.length > 0 ? openRounds[openRounds.length - 1] : null;
@@ -93,6 +93,7 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
     setRoundTimers(prev => ({ ...prev, [roundId]: { start: now } }));
     setOpenRounds(prev => [...prev, roundId]);
     setRoundClosed(false);
+    setRevealedQuestions(prev => ({ ...prev, [roundId]: 0 }));
     setActiveRound(roundId);
   };
 
@@ -208,6 +209,11 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
                 {formatElapsed(elapsed)}
               </span>
             )}
+            {activeRound === currentOpenRound && !roundClosed && round && (
+              <span style={{ fontSize: 10, color: C.cream, fontWeight: 600, letterSpacing: 1 }}>
+                {revealedQuestions[activeRound] ?? 0}/{round.questions.length} Q
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -228,6 +234,30 @@ export default function ScoringView({ activeRound, setActiveRound, activeTeams, 
               Close Round
             </button>
           )}
+          {/* Reveal questions one by one (visible when viewing the live round) */}
+          {activeRound === currentOpenRound && isLive && !isClosed && round && (() => {
+            const revealed = revealedQuestions[activeRound] ?? 0;
+            const total = round.questions.length;
+            const allRevealed = revealed >= total;
+            return (
+              <>
+                <button onClick={() => !allRevealed && setRevealedQuestions(prev => ({ ...prev, [activeRound]: revealed + 1 }))} disabled={allRevealed} style={{
+                  ...btnPrimary, fontSize: 10, padding: "8px 14px",
+                  background: allRevealed ? C.sageMuted : C.cream, color: allRevealed ? C.sage : C.greenDeep,
+                  opacity: allRevealed ? 0.5 : 1, cursor: allRevealed ? "default" : "pointer",
+                }}>
+                  Next Q
+                </button>
+                {!allRevealed && (
+                  <button onClick={() => setRevealedQuestions(prev => ({ ...prev, [activeRound]: total }))} style={{
+                    ...btnGhost, fontSize: 10,
+                  }}>
+                    All Q
+                  </button>
+                )}
+              </>
+            );
+          })()}
           {/* Reopen current round (visible when viewing the just-closed round) */}
           {activeRound === currentOpenRound && roundClosed && !isClosed && (
             <button onClick={handleReopenRound} style={{

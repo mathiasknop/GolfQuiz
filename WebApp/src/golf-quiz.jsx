@@ -31,6 +31,7 @@ function App() {
   const [roundTimers, setRoundTimers] = useState({});
   const [lastSeen, setLastSeen] = useState({});
   const [teamPlayers, setTeamPlayers] = useState({});
+  const [revealedQuestions, setRevealedQuestions] = useState({});
   const [revealCount, setRevealCount] = useState(0);
   const [revealed, setRevealed] = useState(false);
 
@@ -65,6 +66,7 @@ function App() {
     setRoundTimers(session.roundTimers || {});
     setLastSeen(session.lastSeen || {});
     setTeamPlayers(session.teamPlayers || {});
+    setRevealedQuestions(session.revealedQuestions || {});
     // Restore role from localStorage
     const savedRole = localStorage.getItem(ROLE_KEY);
     const savedTeamIdx = localStorage.getItem(TEAM_IDX_KEY);
@@ -136,11 +138,11 @@ function App() {
       fetch(`/api/session/${sessionCode}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "x-host-pin": pin },
-        body: JSON.stringify({ teams, teamCount, scores, activeRound, view, showAnswers, openRounds, roundClosed, roundTimers, teamPlayers }),
+        body: JSON.stringify({ teams, teamCount, scores, activeRound, view, showAnswers, openRounds, roundClosed, roundTimers, teamPlayers, revealedQuestions }),
       }).catch(() => {}).finally(() => { saveTimer.current = null; });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [teams, teamCount, scores, activeRound, view, showAnswers, openRounds, roundClosed, roundTimers, teamPlayers, sessionCode, sessionStatus, role]);
+  }, [teams, teamCount, scores, activeRound, view, showAnswers, openRounds, roundClosed, roundTimers, teamPlayers, revealedQuestions, sessionCode, sessionStatus, role]);
 
   // Poll for remote changes every 3s (real-time sync across devices)
   useEffect(() => {
@@ -167,6 +169,7 @@ function App() {
           setRoundTimers(prev => { const next = s.roundTimers || {}; return JSON.stringify(prev) === JSON.stringify(next) ? prev : next; });
           setLastSeen(prev => { const next = s.lastSeen || {}; return JSON.stringify(prev) === JSON.stringify(next) ? prev : next; });
           setTeamPlayers(prev => { const next = s.teamPlayers || {}; return JSON.stringify(prev) === JSON.stringify(next) ? prev : next; });
+          setRevealedQuestions(prev => { const next = s.revealedQuestions || {}; return JSON.stringify(prev) === JSON.stringify(next) ? prev : next; });
         })
         .catch(() => {});
     }, 3000);
@@ -254,6 +257,7 @@ function App() {
     setRoundTimers({});
     setLastSeen({});
     setTeamPlayers({});
+    setRevealedQuestions({});
     setRevealCount(0);
     setRevealed(false);
     setRole("host");
@@ -362,6 +366,7 @@ function App() {
         sessionStatus={sessionStatus}
         openRounds={openRounds}
         roundClosed={roundClosed}
+        revealedQuestions={revealedQuestions}
         onLeave={handleLeaveSession}
       />
     );
@@ -438,6 +443,7 @@ function App() {
       roundClosed={roundClosed} setRoundClosed={setRoundClosed}
       roundTimers={roundTimers} setRoundTimers={setRoundTimers}
       lastSeen={lastSeen}
+      revealedQuestions={revealedQuestions} setRevealedQuestions={setRevealedQuestions}
     />
   );
 }

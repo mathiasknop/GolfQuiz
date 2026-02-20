@@ -79,6 +79,7 @@ app.http("session-create", {
         roundTimers: {},
         teamPlayers: {},
         lastSeen: {},
+        revealedQuestions: {},
         status: "open",
         updatedAt: new Date().toISOString(),
       };
@@ -256,6 +257,7 @@ app.http("session-save", {
         roundTimers: body.roundTimers || existing?.roundTimers || {},
         teamPlayers: body.teamPlayers || existing?.teamPlayers || {},
         lastSeen: existing?.lastSeen || {},
+        revealedQuestions: body.revealedQuestions || existing?.revealedQuestions || {},
         status: existing?.status || "open",
         updatedAt: new Date().toISOString(),
       };
