@@ -9,8 +9,10 @@ import LeaderboardView from "./LeaderboardView.jsx";
 import PlayerView from "./PlayerView.jsx";
 import ManageView from "./ManageView.jsx";
 import GuideView from "./GuideView.jsx";
+import PublicLeaderboard from "./PublicLeaderboard.jsx";
 
 const isAdmin = window.location.pathname.startsWith("/admin");
+const isLeaderboardRoute = window.location.pathname === "/leaderboard";
 
 function App() {
   const [roundsData, setRoundsData] = useState(null);
@@ -352,6 +354,9 @@ function App() {
       </div>
     </div>
   );
+
+  // Public leaderboard — standalone route, no auth needed
+  if (isLeaderboardRoute) return <PublicLeaderboard roundsData={roundsData} roundOrder={roundOrder} />;
 
   // Player view — separate route that bypasses host views
   if (role === "player" && playerTeamIdx !== null && sessionCode) {
