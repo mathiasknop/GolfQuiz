@@ -104,7 +104,10 @@ export default function GuideView({ onBack }) {
           </div>
           <p>Multiple players on the same team can join at the same time — everyone sees each other's answers in real time.</p>
 
-          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>2. Answer Questions</p>
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>2. Choose Your Language</p>
+          <p>After selecting your team, pick your preferred language: <span style={strong}>English</span>, <span style={strong}>Nederlands</span>, or <span style={strong}>Français</span>. All questions and UI will be shown in your chosen language. You can change it anytime using the <span style={strong}>EN / NL / FR</span> buttons in the top-right corner of the player screen.</p>
+
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>3. Answer Questions</p>
           <p>You'll see a "Waiting for the host to start the quiz..." message until the host opens the first round. Once a round is open, it appears automatically. Depending on the question type:</p>
           <div style={tableWrap}>
             <table style={table}>
@@ -119,10 +122,10 @@ export default function GuideView({ onBack }) {
           </div>
           <p>Tap <span style={strong}>Submit</span> to send your answer. You can change it and tap <span style={strong}>Update</span> while the round is still open.</p>
 
-          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>3. Review Previous Rounds</p>
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>4. Review Previous Rounds</p>
           <p>When the host moves to the next round, previous rounds become read-only. You can tap any closed round tab to review the questions and see the <span style={{ color: C.correctBright }}>correct answers</span> alongside your submitted answer.</p>
 
-          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>4. Session Closed</p>
+          <p style={{ ...h3Style, fontSize: 12, marginBottom: 8, marginTop: 16 }}>5. Session Closed</p>
           <p>When the host closes the session, a red banner appears and all inputs are locked. Tap <span style={strong}>Leave</span> to return to the lobby.</p>
         </>
       ),
@@ -164,6 +167,7 @@ export default function GuideView({ onBack }) {
                 <tr><td style={td}><span style={strong}>Host PIN</span></td><td style={td}>4-digit code to rejoin as host</td></tr>
                 <tr><td style={td}><span style={strong}>Team PINs</span></td><td style={td}>4-digit code per team — printed on QR cards or entered manually</td></tr>
                 <tr><td style={td}><span style={strong}>Max teams</span></td><td style={td}>20</td></tr>
+                <tr><td style={td}><span style={strong}>Languages</span></td><td style={td}>English, Nederlands, Français — per player</td></tr>
                 <tr><td style={td}><span style={strong}>Sync</span></td><td style={td}>Automatic every 3 seconds across all devices</td></tr>
                 <tr><td style={td}><span style={strong}>Browser support</span></td><td style={td}>Any modern browser (Chrome, Safari, Firefox, Edge)</td></tr>
                 <tr><td style={td}><span style={strong}>Works offline?</span></td><td style={td}>No — requires an internet connection</td></tr>
